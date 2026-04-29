@@ -4,10 +4,11 @@ import { generateThumbnail } from './lib/exportUtils';
 
 interface ThumbnailTabProps {
   videoUrl: string | null;
+  thumbnailUrl: string | null;
+  setThumbnailUrl: (url: string | null) => void;
 }
 
-export default function ThumbnailTab({ videoUrl }: ThumbnailTabProps) {
-  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
+export default function ThumbnailTab({ videoUrl, thumbnailUrl, setThumbnailUrl }: ThumbnailTabProps) {
   const [isGenerating, setIsGenerating] = useState(false);
 
   const handleGenerate = async () => {

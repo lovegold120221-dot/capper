@@ -34,6 +34,7 @@ export default function App() {
   
   const [title, setTitle] = useState("Power of Identity");
   const [subtitles, setSubtitles] = useState<Subtitle[]>([]);
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
   
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -94,18 +95,38 @@ export default function App() {
 
   // Generation Flow
   const handleGenerate = async () => {
-    if (!videoFile) return;
+    if (!videoFile || !videoUrl) return;
     setIsGenerating(true);
     try {
+      // 1. Generate Subtitles
       const base64Audio = await extractAudioBase64(videoFile);
       const generatedSubtitles = await generateSubtitles(base64Audio);
       setSubtitles(generatedSubtitles);
+
+      // 2. Generate Title
+      if (generatedSubtitles.length > 0) {
+        const fullText = generatedSubtitles.map(s => s.text).join(' ');
+        const titleRes = await generateViralTitle(fullText);
+        setGeneratedTitle(titleRes);
+        setTitle(titleRes);
+      }
+
+      // 3. Generate Thumbnail (we will show it on Thumbnail tab automatically later)
+      const { generateThumbnail } = await import('./lib/exportUtils');
+      const generatedThumbnailUrl = await generateThumbnail(videoUrl);
+      setThumbnailUrl(generatedThumbnailUrl);
+
+      // 4. Upscale video
+      await handleUpscaleMain();
+
       // Reset play state
       if (videoRef.current) {
         videoRef.current.currentTime = 0;
       }
+      setActiveTab('caption');
+      alert("Auto magic completed! Subtitles, Title, and Upscaling applied.");
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Failed to generate subtitles.");
+      alert(error instanceof Error ? error.message : "Failed to auto-generate.");
     } finally {
       setIsGenerating(false);
     }
@@ -249,82 +270,89 @@ export default function App() {
     }
   };
 
-  const handleUpscaleMain = async () => {
+  const handleUpscaleMain = async (): Promise<void> => {
     if (!videoUrl || !videoFile) return;
     setIsUpscalingMain(true);
     setUpscaleProgressMain(0);
 
-    const video = document.createElement('video');
-    video.src = videoUrl;
-    video.muted = true;
-    video.crossOrigin = 'anonymous';
+    return new Promise(async (resolvePromise, rejectPromise) => {
+      try {
+        const video = document.createElement('video');
+        video.src = videoUrl;
+        video.muted = true;
+        video.crossOrigin = 'anonymous';
 
-    await new Promise<void>((resolve, reject) => {
-      video.onloadeddata = () => resolve();
-      video.onerror = () => reject(new Error('Failed to load video'));
-    });
+        await new Promise<void>((resolve, reject) => {
+          video.onloadeddata = () => resolve();
+          video.onerror = () => reject(new Error('Failed to load video'));
+        });
 
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth * 1.5;
-    canvas.height = video.videoHeight * 1.5;
-    const ctx = canvas.getContext('2d')!;
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth * 1.5;
+        canvas.height = video.videoHeight * 1.5;
+        const ctx = canvas.getContext('2d')!;
 
-    // Faux AI enhancement
-    ctx.filter = 'contrast(1.1) saturate(1.2) drop-shadow(0px 0px 1px rgba(0,0,0,0.5))';
+        // Faux AI enhancement
+        ctx.filter = 'contrast(1.1) saturate(1.2) drop-shadow(0px 0px 1px rgba(0,0,0,0.5))';
 
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    const audioCtx = new AudioContextClass();
-    const destCtx = audioCtx.createMediaStreamDestination();
-    const source = audioCtx.createMediaElementSource(video);
-    source.connect(destCtx);
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        const audioCtx = new AudioContextClass();
+        const destCtx = audioCtx.createMediaStreamDestination();
+        const source = audioCtx.createMediaElementSource(video);
+        source.connect(destCtx);
 
-    const streamFrameRate = 30;
-    const stream = (canvas as any).captureStream(streamFrameRate) as MediaStream;
-    destCtx.stream.getAudioTracks().forEach((t: MediaStreamTrack) => stream.addTrack(t));
+        const streamFrameRate = 30;
+        const stream = (canvas as any).captureStream(streamFrameRate) as MediaStream;
+        destCtx.stream.getAudioTracks().forEach((t: MediaStreamTrack) => stream.addTrack(t));
 
-    let mimeType = 'video/webm;codecs=vp8,opus';
-    if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')) {
-      mimeType = 'video/webm;codecs=vp9,opus';
-    }
+        let mimeType = 'video/webm;codecs=vp8,opus';
+        if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')) {
+          mimeType = 'video/webm;codecs=vp9,opus';
+        }
 
-    let mediaRecorder: MediaRecorder;
-    try {
-      mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8000000 });
-    } catch (e) {
-      mediaRecorder = new MediaRecorder(stream);
-    }
+        let mediaRecorder: MediaRecorder;
+        try {
+          mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8000000 });
+        } catch (e) {
+          mediaRecorder = new MediaRecorder(stream);
+        }
 
-    const chunks: Blob[] = [];
-    mediaRecorder.ondataavailable = e => {
-      if (e.data && e.data.size > 0) chunks.push(e.data);
-    };
+        const chunks: Blob[] = [];
+        mediaRecorder.ondataavailable = e => {
+          if (e.data && e.data.size > 0) chunks.push(e.data);
+        };
 
-    mediaRecorder.onstop = () => {
-      audioCtx.close();
-      const blob = new Blob(chunks, { type: mimeType });
-      const newUrl = URL.createObjectURL(blob);
-      const newFile = new File([blob], "upscaled_" + videoFile.name, { type: mimeType });
-      setVideoUrl(newUrl);
-      setVideoFile(newFile);
-      setIsUpscalingMain(false);
-      alert("Upscaled video successfully!");
-    };
+        mediaRecorder.onstop = () => {
+          audioCtx.close();
+          const blob = new Blob(chunks, { type: mimeType });
+          const newUrl = URL.createObjectURL(blob);
+          const newFile = new File([blob], "upscaled_" + videoFile.name, { type: mimeType });
+          setVideoUrl(newUrl);
+          setVideoFile(newFile);
+          setIsUpscalingMain(false);
+          resolvePromise();
+        };
 
-    mediaRecorder.start(100);
-    await video.play();
+        mediaRecorder.start(100);
+        await video.play();
 
-    const drawFrame = () => {
-      if (video.ended || video.paused) {
-        mediaRecorder.stop();
-        return;
+        const drawFrame = () => {
+          if (video.ended || video.paused) {
+            mediaRecorder.stop();
+            return;
+          }
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const curProgress = Math.floor((video.currentTime / (video.duration || 1)) * 100);
+          setUpscaleProgressMain(Math.min(100, curProgress));
+          requestAnimationFrame(drawFrame);
+        };
+
+        drawFrame();
+      } catch (err) {
+        setIsUpscalingMain(false);
+        rejectPromise(err);
       }
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const curProgress = Math.floor((video.currentTime / (video.duration || 1)) * 100);
-      setUpscaleProgressMain(Math.min(100, curProgress));
-      requestAnimationFrame(drawFrame);
-    };
-
-    drawFrame();
+    });
   };
 
   const renderSubtitles = () => {
@@ -451,7 +479,7 @@ export default function App() {
       )}
 
       {activeTab === 'thumbnail' && (
-        <ThumbnailTab videoUrl={videoUrl} />
+        <ThumbnailTab videoUrl={videoUrl} thumbnailUrl={thumbnailUrl} setThumbnailUrl={setThumbnailUrl} />
       )}
 
       {activeTab === 'caption' && (
@@ -548,23 +576,23 @@ export default function App() {
             <button
               onClick={handleGenerate}
               disabled={!videoFile || isGenerating}
-              className="w-full bg-[#FFD700] hover:bg-[#FFD700]/80 disabled:bg-[#FFD700]/10 disabled:text-white/30 disabled:border-white/10 disabled:border disabled:cursor-not-allowed text-black font-black uppercase tracking-widest text-[10px] py-4 rounded-full transition-all flex items-center justify-center gap-2"
+              className="w-full bg-[#FFD700] hover:bg-[#FFD700]/80 disabled:bg-[#FFD700]/10 disabled:text-white/30 disabled:border-white/10 disabled:border disabled:cursor-not-allowed text-black font-black uppercase tracking-widest text-[10px] py-4 rounded-full transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(255,215,0,0.4)] hover:scale-105 active:scale-95"
             >
               {isGenerating ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Extracting Transcript...
+                  Generating Magic...
                 </>
               ) : (
                 <>
-                  <TypeIcon className="w-4 h-4" />
-                  Generate Subtitles
+                  <Wand2 className="w-4 h-4" />
+                  1-Tap Auto Generate
                 </>
               )}
             </button>
-            <div className="mt-4 p-4 bg-[#FFD700]/5 border border-[#FFD700]/20 rounded-lg">
-              <p className="text-[11px] leading-relaxed italic opacity-80 text-center">
-                "Syncing syllables with rhythmic pulses for maximum engagement."
+            <div className="mt-4 p-4 bg-[#FFD700]/5 border border-[#FFD700]/20 rounded-xl">
+              <p className="text-[9px] leading-relaxed italic opacity-80 text-center font-bold tracking-widest uppercase text-[#FFD700]">
+                Auto Subtitles + Viral Title + Hooks + Upscale
               </p>
             </div>
           </section>
