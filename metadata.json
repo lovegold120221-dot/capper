@@ -1,0 +1,6 @@
+{
+  "name": "Shorts Subtitle Generator",
+  "description": "Upload a portrait video recap, generate karaoke-style subtitles using AI, and mix with a background track for YouTube Shorts.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
