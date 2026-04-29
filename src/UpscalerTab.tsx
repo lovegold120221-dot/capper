@@ -35,11 +35,11 @@ export default function UpscalerTab() {
   };
 
   return (
-    <div className="flex-1 flex flex-col p-8 overflow-y-auto">
-      <div className="max-w-4xl mx-auto w-full space-y-8">
+    <div className="flex-1 flex flex-col p-4 md:p-8 overflow-y-auto pb-[90px] md:pb-8">
+      <div className="max-w-4xl mx-auto w-full space-y-6 md:space-y-8">
         <div>
-          <h2 className="text-3xl font-black italic tracking-tight text-white mb-2">Video <span className="text-[#FFD700]">Upscaler</span></h2>
-          <p className="text-white/50 text-sm font-medium uppercase tracking-widest">Enhance resolution and clarity using AI models.</p>
+          <h2 className="text-2xl md:text-3xl font-black italic tracking-tight text-white mb-2">Video <span className="text-[#FFD700]">Upscaler</span></h2>
+          <p className="text-white/50 text-[10px] md:text-sm font-medium uppercase tracking-widest leading-relaxed">Enhance resolution and clarity using AI models.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

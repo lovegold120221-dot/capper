@@ -318,41 +318,45 @@ export default function App() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex gap-2 p-1 bg-white/5 rounded-lg">
+        <div className="hidden md:flex gap-2 p-1 bg-white/5 rounded-lg">
           <button onClick={() => setActiveTab('caption')} className={`px-4 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest transition-colors ${activeTab === 'caption' ? 'bg-[#FFD700] text-black shadow-lg' : 'text-white/60 hover:text-white'}`}>Caption Sync</button>
           <button onClick={() => setActiveTab('movie')} className={`px-4 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest transition-colors ${activeTab === 'movie' ? 'bg-[#FFD700] text-black shadow-lg' : 'text-white/60 hover:text-white'}`}>Movie Recorder</button>
           <button onClick={() => setActiveTab('upscaler')} className={`px-4 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest transition-colors ${activeTab === 'upscaler' ? 'bg-[#FFD700] text-black shadow-lg' : 'text-white/60 hover:text-white'}`}>Upscaler</button>
         </div>
 
-        <div className="flex gap-4">
+        <div className="flex gap-2 md:gap-4 items-center">
           {activeTab === 'caption' && (
             <>
               <button 
                 onClick={handleUpscaleMain}
                 disabled={!videoFile || isUpscalingMain}
-                className="text-[10px] uppercase tracking-widest font-bold text-[#FFD700] border border-[#FFD700]/30 px-4 py-2 rounded-full hover:bg-[#FFD700]/10 transition-colors disabled:opacity-30 disabled:border-white/10 disabled:text-white disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="text-[10px] uppercase tracking-widest font-bold text-[#FFD700] border border-[#FFD700]/30 p-2 md:px-4 md:py-2 rounded-full hover:bg-[#FFD700]/10 transition-colors disabled:opacity-30 flex items-center justify-center gap-1.5"
+                title="Upscale"
               >
-                {isUpscalingMain ? <Loader2 className="w-3 h-3 animate-spin"/> : <Wand2 className="w-3 h-3" />}
-                {isUpscalingMain ? `Upscaling ${upscaleProgressMain}%` : 'Upscale'}
+                {isUpscalingMain ? <Loader2 className="w-4 h-4 md:w-3 md:h-3 animate-spin"/> : <Wand2 className="w-4 h-4 md:w-3 md:h-3" />}
+                <span className="hidden md:inline">{isUpscalingMain ? `Upscaling ${upscaleProgressMain}%` : 'Upscale'}</span>
               </button>
               <button 
                 onClick={handleGenerateThumbnail}
                 disabled={!videoFile || isGeneratingThumbnail}
-                className="text-[10px] uppercase tracking-widest font-bold text-white border border-white/20 px-4 py-2 rounded-full hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="text-[10px] uppercase tracking-widest font-bold text-white border border-white/20 p-2 md:px-4 md:py-2 rounded-full hover:bg-white/10 transition-colors disabled:opacity-30 flex items-center justify-center gap-1.5"
+                title="Generate Hook Thumbnail"
               >
-                {isGeneratingThumbnail ? <Loader2 className="w-3 h-3 animate-spin"/> : null}
-                Generate Hook Thumbnail
+                {isGeneratingThumbnail ? <Loader2 className="w-4 h-4 md:w-3 md:h-3 animate-spin"/> : <Video className="w-4 h-4 md:hidden" />}
+                {!isGeneratingThumbnail && <span className="hidden md:inline">Generate Hook Thumbnail</span>}
               </button>
               <button 
                 onClick={() => setIsExportModalOpen(true)}
                 disabled={!videoFile}
-                className="text-[10px] uppercase tracking-widest font-bold text-[#FFD700] border border-[#FFD700]/30 px-4 py-2 rounded-full hover:bg-[#FFD700]/10 transition-colors disabled:opacity-30 disabled:border-white/10 disabled:text-white disabled:cursor-not-allowed hidden xl:block"
+                className="text-[10px] uppercase tracking-widest font-bold text-[#FFD700] bg-[#FFD700]/10 border border-[#FFD700]/30 p-2 md:px-4 md:py-2 rounded-full hover:bg-[#FFD700]/20 transition-colors disabled:opacity-30 flex items-center justify-center gap-1.5"
+                title="Export Recap"
               >
-                Export Recap
+                <Download className="w-4 h-4 md:hidden" />
+                <span className="hidden md:inline">Export Recap</span>
               </button>
-              <button onClick={() => setIsSettingsOpen(true)} className="text-[10px] flex items-center justify-center gap-1 uppercase tracking-widest font-bold opacity-70 hover:opacity-100 hover:text-[#FFD700] transition-colors">
-                <Settings className="w-3 h-3" />
-                Settings
+              <button onClick={() => setIsSettingsOpen(true)} className="p-2 md:p-0 text-[10px] flex items-center justify-center gap-1 uppercase tracking-widest font-bold opacity-70 hover:opacity-100 hover:text-[#FFD700] transition-colors" title="Settings">
+                <Settings className="w-5 h-5 md:w-3 md:h-3" />
+                <span className="hidden md:inline">Settings</span>
               </button>
             </>
           )}
@@ -360,7 +364,7 @@ export default function App() {
       </header>
 
       {activeTab === 'movie' && (
-        <iframe src="/movie.html" className="w-full flex-1 border-none" allow="display-capture; camera; microphone; fullscreen" />
+        <iframe src="/movie.html" className="w-full flex-1 border-none mb-[65px] md:mb-0" allow="display-capture; camera; microphone; fullscreen" />
       )}
       
       {activeTab === 'upscaler' && (
@@ -368,9 +372,9 @@ export default function App() {
       )}
 
       {activeTab === 'caption' && (
-      <main className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+      <main className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden relative pb-[80px] md:pb-0">
         {/* Left Sidebar: Controls */}
-        <aside className="w-full lg:w-80 border-r border-white/10 p-8 flex flex-col gap-10 overflow-y-auto shrink-0 custom-scrollbar h-full min-h-0">
+        <aside className="order-2 lg:order-1 w-full lg:w-80 lg:border-r border-white/10 p-6 lg:p-8 flex flex-col gap-8 lg:gap-10 shrink-0 lg:overflow-y-auto lg:h-full lg:min-h-0 custom-scrollbar bg-[#0A0A0B] z-10">
           <section>
             <h3 className="text-[10px] uppercase tracking-[0.3em] font-bold text-[#FFD700] mb-6">Source Video</h3>
             <div className="border-2 border-dashed border-white/10 rounded-xl p-6 bg-white/5 flex flex-col items-center gap-3 relative group hover:border-[#FFD700]/50 transition-colors">
@@ -484,8 +488,8 @@ export default function App() {
         </aside>
 
         {/* Center: Video Preview (The core feature) */}
-        <section className="flex-1 bg-[#141416] flex items-center justify-center relative p-8 h-full min-h-0 overflow-hidden">
-          <div className="h-[680px] w-[382px] bg-black rounded-[48px] border-[8px] border-[#2A2A2E] shadow-2xl relative overflow-hidden flex flex-col shrink-0 group">
+        <section className="order-1 lg:order-2 w-full lg:flex-1 bg-[#141416] flex items-center justify-center relative p-4 lg:p-8 h-[45vh] lg:h-full min-h-[300px] lg:min-h-0 shrink-0 lg:overflow-hidden sticky lg:static top-0 z-30 border-b border-white/10 lg:border-none shadow-2xl lg:shadow-none">
+          <div className="h-full aspect-[9/16] max-w-[85vw] lg:max-w-full lg:max-h-[680px] bg-black rounded-2xl lg:rounded-[48px] border-[4px] lg:border-[8px] border-[#2A2A2E] shadow-2xl relative overflow-hidden flex flex-col shrink-0 group mx-auto">
             {/* Mock Video Background if no video */}
             {!videoUrl && (
               <div className="absolute inset-0 bg-gradient-to-b from-[#1a1a1a] to-[#0a0a0a] flex items-center justify-center flex-col gap-4 text-white/20">
@@ -573,13 +577,13 @@ export default function App() {
           </div>
         </section>
 
-        {/* Right Sidebar: Live Transcription */}
-        <aside className="w-full lg:w-80 border-l border-white/10 hidden xl:flex flex-col shrink-0 bg-[#0A0A0B]/50 relative h-full min-h-0 overflow-hidden">
-          <div className="p-8 pb-4 shrink-0">
+        {/* Right Sidebar: Live Transcription & Settings */}
+        <aside className="order-3 w-full lg:w-80 lg:border-l border-t lg:border-t-0 border-white/10 flex flex-col shrink-0 bg-[#0A0A0B]/50 lg:bg-[#0A0A0B]/50 relative lg:h-full min-h-0 lg:overflow-hidden z-10">
+          <div className="p-5 lg:p-8 pb-4 shrink-0 border-t border-white/5 lg:border-none">
             <h3 className="text-[10px] uppercase tracking-[0.3em] font-bold text-[#FFD700]">Live Transcript</h3>
           </div>
           
-          <div className="flex-1 overflow-y-auto px-8 space-y-6 opacity-80 custom-scrollbar pb-6 min-h-0">
+          <div className="h-[250px] lg:h-auto lg:flex-1 overflow-y-auto px-5 lg:px-8 space-y-4 lg:space-y-6 opacity-80 custom-scrollbar pb-6 min-h-0 shrink-0 border-b border-white/5 lg:border-none">
             {subtitles.length > 0 ? (
               subtitles.map((sub, index) => {
                 const isActive = currentTime >= sub.start && currentTime <= sub.end;
@@ -639,6 +643,22 @@ export default function App() {
         </aside>
       </main>
       )}
+
+      {/* Mobile Bottom Navigation */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 h-[65px] bg-[#0F0F11]/90 backdrop-blur-md border-t border-white/10 flex justify-around items-center z-50 px-2 pb-[env(safe-area-inset-bottom)]">
+        <button onClick={() => setActiveTab('caption')} className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === 'caption' ? 'text-[#FFD700]' : 'text-white/40'}`}>
+          <TypeIcon className="w-5 h-5" />
+          <span className="text-[9px] font-bold uppercase tracking-widest text-center mt-1">Caption</span>
+        </button>
+        <button onClick={() => setActiveTab('movie')} className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === 'movie' ? 'text-[#FFD700]' : 'text-white/40'}`}>
+          <Video className="w-5 h-5" />
+          <span className="text-[9px] font-bold uppercase tracking-widest text-center mt-1">Movie</span>
+        </button>
+        <button onClick={() => setActiveTab('upscaler')} className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === 'upscaler' ? 'text-[#FFD700]' : 'text-white/40'}`}>
+          <Wand2 className="w-5 h-5" />
+          <span className="text-[9px] font-bold uppercase tracking-widest text-center mt-1">Upscale</span>
+        </button>
+      </div>
 
       {/* Global styles for custom scrollbar */}
       <style dangerouslySetInnerHTML={{__html: `
