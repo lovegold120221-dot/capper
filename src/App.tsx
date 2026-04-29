@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Upload, Play, Pause, Save, Loader2, Music, Video, Type as TypeIcon, X, Download, Settings, Wand2 } from 'lucide-react';
+import { Upload, Play, Pause, Save, Loader2, Music, Video, Type as TypeIcon, X, Download, Settings, Wand2, Image as ImageIcon } from 'lucide-react';
 import { extractAudioBase64 } from './lib/audioUtils';
 import { generateSubtitles, Subtitle, generateViralTitle } from './lib/gemini';
 import { motion, AnimatePresence } from 'motion/react';
 import UpscalerTab from './UpscalerTab';
+import ThumbnailTab from './ThumbnailTab';
 
 function KaraokeText({ subtitle, currentTime }: { subtitle: Subtitle, currentTime: number }) {
   const duration = subtitle.end - subtitle.start;
@@ -44,7 +45,6 @@ export default function App() {
   const [exportFormat, setExportFormat] = useState("MP4");
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
-  const [isGeneratingThumbnail, setIsGeneratingThumbnail] = useState(false);
   
   const [isUpscalingMain, setIsUpscalingMain] = useState(false);
   const [upscaleProgressMain, setUpscaleProgressMain] = useState(0);
@@ -219,28 +219,6 @@ export default function App() {
     }
   };
 
-  const handleGenerateThumbnail = async () => {
-    if (!videoUrl) return;
-    setIsGeneratingThumbnail(true);
-    try {
-      const { generateThumbnail } = await import('./lib/exportUtils');
-      const dataUrl = await generateThumbnail(videoUrl);
-      
-      const a = document.createElement('a');
-      a.href = dataUrl;
-      a.download = `thumbnail_${Date.now()}.jpg`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      
-    } catch (err) {
-      console.error(err);
-      alert("Failed to generate thumbnail");
-    } finally {
-      setIsGeneratingThumbnail(false);
-    }
-  };
-
   const handleGenerateTitle = async () => {
     if (subtitles.length === 0) return;
     setIsGeneratingTitle(true);
@@ -398,6 +376,7 @@ export default function App() {
           <button onClick={() => setActiveTab('caption')} className={`px-4 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest transition-colors ${activeTab === 'caption' ? 'bg-[#FFD700] text-black shadow-lg' : 'text-white/60 hover:text-white'}`}>Caption Sync</button>
           <button onClick={() => setActiveTab('movie')} className={`px-4 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest transition-colors ${activeTab === 'movie' ? 'bg-[#FFD700] text-black shadow-lg' : 'text-white/60 hover:text-white'}`}>Movie Recorder</button>
           <button onClick={() => setActiveTab('upscaler')} className={`px-4 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest transition-colors ${activeTab === 'upscaler' ? 'bg-[#FFD700] text-black shadow-lg' : 'text-white/60 hover:text-white'}`}>Upscaler</button>
+          <button onClick={() => setActiveTab('thumbnail')} className={`px-4 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest transition-colors ${activeTab === 'thumbnail' ? 'bg-[#FFD700] text-black shadow-lg' : 'text-white/60 hover:text-white'}`}>Thumbnail</button>
         </div>
 
         <div className="flex gap-2 md:gap-4 items-center">
@@ -422,13 +401,13 @@ export default function App() {
                 {!isGeneratingTitle && <span className="hidden md:inline">Generate Title</span>}
               </button>
               <button 
-                onClick={handleGenerateThumbnail}
-                disabled={!videoFile || isGeneratingThumbnail}
+                onClick={() => setActiveTab('thumbnail')}
+                disabled={!videoFile}
                 className="text-[10px] uppercase tracking-widest font-bold text-white border border-white/20 p-2 md:px-4 md:py-2 rounded-full hover:bg-white/10 transition-colors disabled:opacity-30 flex items-center justify-center gap-1.5"
-                title="Generate Hook Thumbnail"
+                title="Thumbnail Generator"
               >
-                {isGeneratingThumbnail ? <Loader2 className="w-4 h-4 md:w-3 md:h-3 animate-spin"/> : <Video className="w-4 h-4 md:hidden" />}
-                {!isGeneratingThumbnail && <span className="hidden md:inline">Generate Hook Thumbnail</span>}
+                <ImageIcon className="w-4 h-4 md:hidden" />
+                <span className="hidden md:inline">Thumbnail Generator</span>
               </button>
               <button 
                 onClick={() => setIsExportModalOpen(true)}
@@ -454,6 +433,10 @@ export default function App() {
       
       {activeTab === 'upscaler' && (
         <UpscalerTab />
+      )}
+
+      {activeTab === 'thumbnail' && (
+        <ThumbnailTab videoUrl={videoUrl} />
       )}
 
       {activeTab === 'caption' && (
@@ -750,6 +733,10 @@ export default function App() {
         <button onClick={() => setActiveTab('upscaler')} className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === 'upscaler' ? 'text-[#FFD700]' : 'text-white/40'}`}>
           <Wand2 className="w-5 h-5" />
           <span className="text-[9px] font-bold uppercase tracking-widest text-center mt-1">Upscale</span>
+        </button>
+        <button onClick={() => setActiveTab('thumbnail')} className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === 'thumbnail' ? 'text-[#FFD700]' : 'text-white/40'}`}>
+          <ImageIcon className="w-5 h-5" />
+          <span className="text-[9px] font-bold uppercase tracking-widest text-center mt-1">Hook</span>
         </button>
       </div>
 
