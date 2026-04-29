@@ -261,7 +261,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0A0B] text-[#E8E8E8] font-sans flex flex-col selection:bg-[#FFD700]/30 selection:text-black">
+    <div className="h-screen w-screen overflow-hidden bg-[#0A0A0B] text-[#E8E8E8] font-sans flex flex-col selection:bg-[#FFD700]/30 selection:text-black">
       {/* Top Navigation / Header */}
       <header className="border-b border-white/10 px-8 py-4 flex justify-between items-center bg-[#0F0F11]">
         <div className="flex items-center gap-3">
@@ -285,7 +285,7 @@ export default function App() {
 
       <main className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         {/* Left Sidebar: Controls */}
-        <aside className="w-full lg:w-80 border-r border-white/10 p-8 flex flex-col gap-10 overflow-y-auto shrink-0 custom-scrollbar">
+        <aside className="w-full lg:w-80 border-r border-white/10 p-8 flex flex-col gap-10 overflow-y-auto shrink-0 custom-scrollbar h-full min-h-0">
           <section>
             <h3 className="text-[10px] uppercase tracking-[0.3em] font-bold text-[#FFD700] mb-6">Source Video</h3>
             <div className="border-2 border-dashed border-white/10 rounded-xl p-6 bg-white/5 flex flex-col items-center gap-3 relative group hover:border-[#FFD700]/50 transition-colors">
@@ -399,7 +399,7 @@ export default function App() {
         </aside>
 
         {/* Center: Video Preview (The core feature) */}
-        <section className="flex-1 bg-[#141416] flex items-center justify-center relative p-8">
+        <section className="flex-1 bg-[#141416] flex items-center justify-center relative p-8 h-full min-h-0 overflow-hidden">
           <div className="h-[680px] w-[382px] bg-black rounded-[48px] border-[8px] border-[#2A2A2E] shadow-2xl relative overflow-hidden flex flex-col shrink-0 group">
             {/* Mock Video Background if no video */}
             {!videoUrl && (
@@ -489,9 +489,12 @@ export default function App() {
         </section>
 
         {/* Right Sidebar: Live Transcription */}
-        <aside className="w-full lg:w-80 border-l border-white/10 p-8 hidden xl:flex flex-col overflow-y-auto shrink-0 bg-[#0A0A0B]/50 custom-scrollbar">
-          <h3 className="text-[10px] uppercase tracking-[0.3em] font-bold text-[#FFD700] mb-6">Live Transcript</h3>
-          <div className="space-y-6 opacity-80 flex-1">
+        <aside className="w-full lg:w-80 border-l border-white/10 hidden xl:flex flex-col shrink-0 bg-[#0A0A0B]/50 relative h-full min-h-0 overflow-hidden">
+          <div className="p-8 pb-4 shrink-0">
+            <h3 className="text-[10px] uppercase tracking-[0.3em] font-bold text-[#FFD700]">Live Transcript</h3>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto px-8 space-y-6 opacity-80 custom-scrollbar pb-6 min-h-0">
             {subtitles.length > 0 ? (
               subtitles.map((sub, index) => {
                 const isActive = currentTime >= sub.start && currentTime <= sub.end;
@@ -514,7 +517,7 @@ export default function App() {
           </div>
 
           {/* Subtitle Style Options */}
-          <div className="mt-6 p-6 rounded-2xl bg-white/5 border border-[#FFD700]/20 sticky bottom-0 backdrop-blur-md space-y-6 shadow-[0_-10px_40px_rgba(255,215,0,0.05)]">
+          <div className="shrink-0 p-6 bg-[#0A0A0B] border-t border-white/10 space-y-6 shadow-[0_-10px_40px_rgba(255,215,0,0.05)]">
             <div className="flex items-center justify-between opacity-60">
               <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-[#FFD700]">Subtitle Quick Edits</span>
               <Settings className="w-3 h-3 text-[#FFD700]" />
