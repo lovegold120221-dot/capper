@@ -1,8 +1,26 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Upload, Play, Pause, Save, Loader2, Music, Video, Type as TypeIcon, X, Download } from 'lucide-react';
+import { Upload, Play, Pause, Save, Loader2, Music, Video, Type as TypeIcon, X, Download, Settings } from 'lucide-react';
 import { extractAudioBase64 } from './lib/audioUtils';
 import { generateSubtitles, Subtitle } from './lib/gemini';
 import { motion, AnimatePresence } from 'motion/react';
+
+function KaraokeText({ subtitle, currentTime }: { subtitle: Subtitle, currentTime: number }) {
+  const duration = subtitle.end - subtitle.start;
+  const elapsed = currentTime - subtitle.start;
+  const progress = Math.min(1, Math.max(0, elapsed / duration));
+  
+  return (
+    <span className="relative inline-block transform -rotate-2 uppercase font-black" style={{ WebkitTextStroke: '3px black' }}>
+      <span className="text-white/40 drop-shadow-xl">{subtitle.text}</span>
+      <span 
+        className="absolute left-0 top-0 text-[#FFD700] overflow-hidden whitespace-nowrap drop-shadow-[0_2px_10px_rgba(255,215,0,0.5)]"
+        style={{ width: `${progress * 100}%` }}
+      >
+        {subtitle.text}
+      </span>
+    </span>
+  );
+}
 
 export default function App() {
   const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -26,8 +44,20 @@ export default function App() {
   const [exportProgress, setExportProgress] = useState(0);
   
   // Subtitle Settings
-  const [subFont, setSubFont] = useState<'sans' | 'serif' | 'mono'>('sans');
-  const [subPos, setSubPos] = useState<'bottom' | 'center'>('bottom');
+  const [subSettings, setSubSettings] = useState(() => {
+    const saved = localStorage.getItem('captionSyncSettings');
+    return saved ? JSON.parse(saved) : {
+      font: 'sans',
+      size: 'md',
+      style: 'block', // 'block', 'stroke', 'karaoke'
+      position: 'bottom',
+    };
+  });
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('captionSyncSettings', JSON.stringify(subSettings));
+  }, [subSettings]);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const bgAudioRef = useRef<HTMLAudioElement>(null);
@@ -155,8 +185,7 @@ export default function App() {
         bgAudioUrl,
         subtitles,
         title,
-        subFont,
-        subPos,
+        subSettings,
         resolution: exportResolution as '720p' | '1080p',
         format: exportFormat,
         onProgress: (p) => setExportProgress(p)
@@ -182,8 +211,17 @@ export default function App() {
   };
 
   const renderSubtitles = () => {
-    const fontClass = subFont === 'serif' ? 'font-serif' : subFont === 'mono' ? 'font-mono' : 'font-sans';
-    const italicClass = subFont !== 'mono' ? 'italic' : '';
+    const { font, size, style } = subSettings;
+    
+    let fontClass = 'font-sans';
+    let addedClasses = 'italic';
+    if (font === 'serif') fontClass = 'font-serif';
+    if (font === 'mono') { fontClass = 'font-mono'; addedClasses = 'uppercase'; }
+    if (font === 'impact') { fontClass = 'font-sans opacity-90'; addedClasses = 'uppercase tracking-tighter'; }
+
+    const sizeMap: Record<string, string> = { sm: 'text-xl md:text-2xl', md: 'text-2xl md:text-3xl', lg: 'text-4xl md:text-5xl', xl: 'text-5xl md:text-7xl' };
+    const fontSizeClass = sizeMap[size];
+
     return (
       <AnimatePresence mode="wait">
         {activeSubtitle && (
@@ -192,13 +230,24 @@ export default function App() {
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.1 } }}
-            className={`text-2xl md:text-3xl font-black ${italicClass} tracking-tight text-center leading-snug w-full select-none ${fontClass}`}
+            className={`${fontSizeClass} font-black ${addedClasses} tracking-tight text-center leading-snug w-full select-none ${fontClass}`}
           >
-            <span 
-              className="bg-[#FFD700] text-black px-3 py-1 inline-block transform -rotate-2 uppercase shadow-xl"
-            >
-              {activeSubtitle.text}
-            </span>
+            {style === 'block' && (
+              <span className="bg-[#FFD700] text-black px-3 py-1 inline-block transform -rotate-2 uppercase shadow-xl">
+                {activeSubtitle.text}
+              </span>
+            )}
+            {style === 'stroke' && (
+              <span 
+                className="text-white transform -rotate-2 inline-block uppercase drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]"
+                style={{ WebkitTextStroke: '2px black' }}
+              >
+                {activeSubtitle.text}
+              </span>
+            )}
+            {style === 'karaoke' && (
+              <KaraokeText subtitle={activeSubtitle} currentTime={currentTime} />
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -227,7 +276,10 @@ export default function App() {
           >
             Export Recap
           </button>
-          <button className="text-[10px] uppercase tracking-widest font-bold opacity-40 hover:opacity-100 transition-opacity">Settings</button>
+          <button onClick={() => setIsSettingsOpen(true)} className="text-[10px] flex items-center justify-center gap-1 uppercase tracking-widest font-bold opacity-70 hover:opacity-100 hover:text-[#FFD700] transition-colors">
+             <Settings className="w-3 h-3" />
+             Settings
+          </button>
         </div>
       </header>
 
@@ -287,6 +339,24 @@ export default function App() {
               </p>
             </div>
             
+            {/* Lyra BGM Presets */}
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              {[
+                { name: 'Lofi Study', url: 'https://assets.mixkit.co/music/preview/mixkit-hip-hop-02-738.mp3' },
+                { name: 'Cinematic', url: 'https://assets.mixkit.co/music/preview/mixkit-life-is-a-dream-837.mp3' },
+                { name: 'Tech House', url: 'https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3' },
+                { name: 'Upbeat', url: 'https://assets.mixkit.co/music/preview/mixkit-dreaming-big-31.mp3' },
+              ].map(bgm => (
+                <button
+                  key={bgm.name}
+                  onClick={() => { setBgAudioUrl(bgm.url); setBgAudioFile(new File([], `Lyra: ${bgm.name}`)); }}
+                  className="bg-white/5 hover:bg-white/10 hover:border-[#FFD700]/50 border border-white/10 rounded-md py-2 px-3 text-[9px] uppercase tracking-wider font-bold text-white transition-colors"
+                >
+                  Lyra: {bgm.name}
+                </button>
+              ))}
+            </div>
+
             {bgAudioFile && (
               <div className="mt-6 space-y-4">
                 <div>
@@ -374,8 +444,15 @@ export default function App() {
                   </div>
 
                   {/* Center Placement */}
-                  {subPos === 'center' && (
+                  {subSettings.position === 'center' && (
                     <div className="absolute inset-0 flex items-center justify-center px-8 z-20 pointer-events-none mt-16">
+                      {renderSubtitles()}
+                    </div>
+                  )}
+                  
+                  {/* Top Placement */}
+                  {subSettings.position === 'top' && (
+                    <div className="absolute inset-x-0 top-0 pt-24 flex justify-center px-8 z-20 pointer-events-none">
                       {renderSubtitles()}
                     </div>
                   )}
@@ -384,7 +461,7 @@ export default function App() {
                   <div className="pb-8 px-8 space-y-6 relative">
                     {/* Karaoke Subtitles */}
                     <div className="flex justify-center w-full min-h-[120px] items-end">
-                      {subPos === 'bottom' && renderSubtitles()}
+                      {subSettings.position === 'bottom' && renderSubtitles()}
                     </div>
                     
                     {/* Progress Bar */}
@@ -437,31 +514,37 @@ export default function App() {
           </div>
 
           {/* Subtitle Style Options */}
-          <div className="mt-12 p-6 rounded-2xl bg-white/5 border border-white/10 sticky bottom-0 backdrop-blur-md space-y-6">
+          <div className="mt-6 p-6 rounded-2xl bg-white/5 border border-[#FFD700]/20 sticky bottom-0 backdrop-blur-md space-y-6 shadow-[0_-10px_40px_rgba(255,215,0,0.05)]">
+            <div className="flex items-center justify-between opacity-60">
+              <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-[#FFD700]">Subtitle Quick Edits</span>
+              <Settings className="w-3 h-3 text-[#FFD700]" />
+            </div>
+
             <div>
-              <p className="text-[10px] uppercase tracking-widest font-bold opacity-40 mb-3">Subtitle Font</p>
-              <div className="flex gap-3">
+              <div className="flex gap-2">
                 <button 
-                  onClick={() => setSubFont('sans')}
-                  className={`w-10 h-10 rounded-lg border flex items-center justify-center text-[12px] font-sans font-bold transition-colors ${subFont === 'sans' ? 'border-[#FFD700] bg-[#FFD700]/10 text-[#FFD700]' : 'border-white/20 text-white hover:bg-white/10'}`}>Aa</button>
+                  onClick={() => setSubSettings({...subSettings, font: 'sans'})}
+                  className={`flex-1 rounded-lg border flex items-center justify-center text-[11px] py-1 font-sans font-bold transition-colors ${subSettings.font === 'sans' ? 'border-[#FFD700] bg-[#FFD700]/10 text-[#FFD700]' : 'border-white/20 text-white hover:bg-white/10'}`}>Aa</button>
                 <button 
-                  onClick={() => setSubFont('serif')}
-                  className={`w-10 h-10 rounded-lg border flex items-center justify-center text-[12px] font-serif font-black italic transition-colors ${subFont === 'serif' ? 'border-[#FFD700] bg-[#FFD700]/10 text-[#FFD700]' : 'border-white/20 text-white hover:bg-white/10'}`}>Aa</button>
+                  onClick={() => setSubSettings({...subSettings, font: 'serif'})}
+                  className={`flex-1 rounded-lg border flex items-center justify-center text-[11px] py-1 font-serif font-black italic transition-colors ${subSettings.font === 'serif' ? 'border-[#FFD700] bg-[#FFD700]/10 text-[#FFD700]' : 'border-white/20 text-white hover:bg-white/10'}`}>Aa</button>
                 <button 
-                  onClick={() => setSubFont('mono')}
-                  className={`w-10 h-10 rounded-lg border flex items-center justify-center text-[12px] font-mono font-bold uppercase transition-colors ${subFont === 'mono' ? 'border-[#FFD700] bg-[#FFD700]/10 text-[#FFD700]' : 'border-white/20 text-white hover:bg-white/10'}`}>Aa</button>
+                  onClick={() => setSubSettings({...subSettings, font: 'mono'})}
+                  className={`flex-1 rounded-lg border flex items-center justify-center text-[11px] py-1 font-mono font-bold uppercase transition-colors ${subSettings.font === 'mono' ? 'border-[#FFD700] bg-[#FFD700]/10 text-[#FFD700]' : 'border-white/20 text-white hover:bg-white/10'}`}>Aa</button>
               </div>
             </div>
 
             <div>
-              <p className="text-[10px] uppercase tracking-widest font-bold opacity-40 mb-3">Placement</p>
-              <div className="flex gap-3">
-                <button 
-                  onClick={() => setSubPos('center')}
-                  className={`flex-1 py-2 rounded-lg border text-[10px] font-bold tracking-widest uppercase transition-colors ${subPos === 'center' ? 'border-[#FFD700] bg-[#FFD700]/10 text-[#FFD700]' : 'border-white/20 text-white hover:bg-white/10'}`}>Center</button>
-                <button 
-                  onClick={() => setSubPos('bottom')}
-                  className={`flex-1 py-2 rounded-lg border text-[10px] font-bold tracking-widest uppercase transition-colors ${subPos === 'bottom' ? 'border-[#FFD700] bg-[#FFD700]/10 text-[#FFD700]' : 'border-white/20 text-white hover:bg-white/10'}`}>Bottom</button>
+              <div className="flex gap-2 text-[9px] uppercase tracking-widest font-bold">
+                 {['block', 'stroke', 'karaoke'].map((s) => (
+                    <button 
+                      key={s}
+                      onClick={() => setSubSettings({...subSettings, style: s as 'block'|'stroke'|'karaoke'})}
+                      className={`flex-1 py-1.5 rounded border transition-colors ${subSettings.style === s ? 'border-[#FFD700] bg-[#FFD700]/10 text-[#FFD700]' : 'border-white/10 text-white/50 hover:bg-white/5 hover:text-white'}`}
+                    >
+                      {s}
+                    </button>
+                 ))}
               </div>
             </div>
           </div>
@@ -484,6 +567,140 @@ export default function App() {
           background: rgba(255, 255, 255, 0.2);
         }
       `}} />
+
+      {/* Full Settings Modal */}
+      <AnimatePresence>
+        {isSettingsOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+              onClick={() => setIsSettingsOpen(false)}
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-2xl bg-[#141416] border border-[#FFD700]/20 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+            >
+              <div className="border-b border-white/10 px-8 py-5 flex justify-between items-center bg-[#0F0F11]">
+                <h3 className="text-[12px] uppercase tracking-[0.3em] font-bold text-[#FFD700] flex items-center gap-2">
+                  <Settings className="w-4 h-4" /> Global Subtitle Settings
+                </h3>
+                <button onClick={() => setIsSettingsOpen(false)} className="opacity-40 hover:opacity-100 transition-opacity">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="p-8 space-y-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                
+                {/* Font Selector */}
+                <div className="space-y-4">
+                  <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 block">Font Family</label>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {[
+                      { id: 'sans', label: 'Sans Serif', cls: 'font-sans' },
+                      { id: 'serif', label: 'Serif Italic', cls: 'font-serif italic' },
+                      { id: 'mono', label: 'Monospace', cls: 'font-mono uppercase' },
+                      { id: 'impact', label: 'Impact / Bold', cls: 'font-sans font-black tracking-tighter uppercase' },
+                    ].map(f => (
+                      <button
+                        key={f.id}
+                        onClick={() => setSubSettings({...subSettings, font: f.id})}
+                        className={`py-4 px-3 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${
+                          subSettings.font === f.id 
+                            ? "border-[#FFD700] bg-[#FFD700]/10 text-[#FFD700]" 
+                            : "border-white/10 bg-white/5 opacity-60 hover:opacity-100 hover:border-white/30"
+                        }`}
+                      >
+                        <span className={`text-2xl font-bold leading-none ${f.cls}`}>Aa</span>
+                        <span className="text-[9px] uppercase tracking-widest font-bold">{f.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Subtitle Size */}
+                <div className="space-y-4">
+                  <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 block">Text Size</label>
+                  <div className="flex gap-3">
+                    {['sm', 'md', 'lg', 'xl'].map(size => (
+                      <button
+                        key={size}
+                        onClick={() => setSubSettings({...subSettings, size: size as any})}
+                        className={`flex-1 py-3 rounded-lg border text-[10px] font-bold tracking-widest uppercase transition-all ${
+                          subSettings.size === size 
+                            ? "border-[#FFD700] bg-[#FFD700]/10 text-[#FFD700]" 
+                            : "border-white/10 bg-white/5 opacity-60 hover:opacity-100 hover:border-white/30"
+                        }`}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Subtitle Style */}
+                <div className="space-y-4">
+                  <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 block">Design Style</label>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {[
+                      { id: 'block', name: 'Solid Block', desc: 'Yellow Background' },
+                      { id: 'stroke', name: 'Text Stroke', desc: 'Outline / Drop Shadow' },
+                      { id: 'karaoke', name: 'Karaoke', desc: 'Animated Word-by-Word' },
+                    ].map(style => (
+                      <button
+                        key={style.id}
+                        onClick={() => setSubSettings({...subSettings, style: style.id as any})}
+                        className={`p-4 rounded-xl border text-left transition-all ${
+                          subSettings.style === style.id 
+                            ? "border-[#FFD700] bg-[#FFD700]/10" 
+                            : "border-white/10 bg-white/5 opacity-60 hover:opacity-100 hover:border-white/30"
+                        }`}
+                      >
+                        <div className={`text-[11px] font-bold uppercase tracking-widest mb-1 ${subSettings.style === style.id ? 'text-[#FFD700]' : 'text-white'}`}>{style.name}</div>
+                        <div className="text-[10px] opacity-50">{style.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Position */}
+                <div className="space-y-4">
+                  <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 block">Screen Placement</label>
+                  <div className="flex gap-3">
+                    {['top', 'center', 'bottom'].map(pos => (
+                      <button
+                        key={pos}
+                        onClick={() => setSubSettings({...subSettings, position: pos as any})}
+                        className={`flex-1 py-3 rounded-lg border text-[10px] font-bold tracking-widest uppercase transition-all ${
+                          subSettings.position === pos 
+                            ? "border-[#FFD700] bg-[#FFD700]/10 text-[#FFD700]" 
+                            : "border-white/10 bg-white/5 opacity-60 hover:opacity-100 hover:border-white/30"
+                        }`}
+                      >
+                        {pos}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
+
+              <div className="border-t border-white/10 p-6 bg-[#0F0F11] flex justify-end">
+                <button 
+                  onClick={() => setIsSettingsOpen(false)}
+                  className="bg-[#FFD700] text-black font-black uppercase tracking-widest text-[10px] px-8 py-3 rounded-md transition-transform hover:scale-[1.02]"
+                >
+                  Save & Close
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Export Modal */}
       <AnimatePresence>

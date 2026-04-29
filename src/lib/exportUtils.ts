@@ -5,8 +5,12 @@ export interface ExportOptions {
   bgAudioUrl: string | null;
   subtitles: Subtitle[];
   title: string;
-  subFont: 'sans' | 'serif' | 'mono';
-  subPos: 'center' | 'bottom';
+  subSettings: {
+    font: string;
+    size: 'sm' | 'md' | 'lg' | 'xl';
+    style: 'block' | 'stroke' | 'karaoke';
+    position: 'bottom' | 'center' | 'top';
+  };
   resolution: '720p' | '1080p';
   format: string;
   onProgress: (progress: number) => void;
@@ -159,16 +163,25 @@ export async function exportVideo(options: ExportOptions): Promise<Blob> {
         
         if (activeSub) {
           ctx.save();
-          const fontSize = Math.floor(width * 0.08); 
-          const subY = options.subPos === 'center' ? height * 0.5 : height * 0.78;
+          const { font, size, style, position } = options.subSettings;
+          
+          const sizeMap = { sm: 0.05, md: 0.08, lg: 0.11, xl: 0.14 };
+          const fontSize = Math.floor(width * sizeMap[size]);
+          
+          let subY = height * 0.78;
+          if (position === 'center') subY = height * 0.5;
+          if (position === 'top') subY = height * 0.25;
           
           let fontName = 'sans-serif';
           let fontStyle = 'normal';
-          if (options.subFont === 'serif') { fontName = 'serif'; fontStyle = 'italic'; }
-          else if (options.subFont === 'mono') { fontName = 'monospace'; }
+          let fontWeight = '900';
+          
+          if (font === 'serif') { fontName = 'serif'; fontStyle = 'italic'; }
+          else if (font === 'mono') { fontName = 'monospace'; }
+          else if (font === 'impact') { fontName = 'Impact, sans-serif'; fontStyle = 'italic'; }
           else { fontStyle = 'italic'; }
           
-          ctx.font = `${fontStyle} 900 ${fontSize}px ${fontName}`;
+          ctx.font = `${fontStyle} ${fontWeight} ${fontSize}px ${fontName}`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           
@@ -176,20 +189,66 @@ export async function exportVideo(options: ExportOptions): Promise<Blob> {
           const textWidth = ctx.measureText(text).width;
           
           ctx.translate(width/2, subY);
+          // slight tilt
           ctx.rotate(-2 * Math.PI / 180);
           
           const padX = width * 0.04;
           const padY = width * 0.03;
           
-          ctx.shadowColor = 'rgba(0,0,0,0.8)';
-          ctx.shadowBlur = 20;
-          ctx.shadowOffsetY = 8;
-          ctx.fillStyle = '#FFD700';
-          ctx.fillRect(-textWidth/2 - padX, -fontSize/2 - padY, textWidth + padX*2, fontSize + padY*2);
+          if (style === 'block') {
+            ctx.shadowColor = 'rgba(0,0,0,0.8)';
+            ctx.shadowBlur = 20;
+            ctx.shadowOffsetY = 8;
+            ctx.fillStyle = '#FFD700';
+            ctx.fillRect(-textWidth/2 - padX, -fontSize/2 - padY, textWidth + padX*2, fontSize + padY*2);
+            
+            ctx.shadowColor = 'transparent';
+            ctx.fillStyle = 'black';
+            ctx.fillText(text, 0, 0);
+          } else if (style === 'stroke') {
+            ctx.shadowColor = 'rgba(0,0,0,0.9)';
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetY = 5;
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = fontSize * 0.15;
+            ctx.strokeText(text, 0, 0);
+            
+            ctx.shadowColor = 'transparent';
+            ctx.fillStyle = 'white';
+            ctx.fillText(text, 0, 0);
+          } else if (style === 'karaoke') {
+             // Karaoke Logic
+             const words = text.split(' ');
+             const duration = activeSub.end - activeSub.start;
+             const elapsed = curTime - activeSub.start;
+             const progress = Math.max(0, Math.min(1, elapsed / duration));
+             
+             ctx.shadowColor = 'rgba(0,0,0,0.9)';
+             ctx.shadowBlur = 10;
+             ctx.shadowOffsetY = 5;
+             
+             // Draw background text (grayed out)
+             ctx.strokeStyle = 'black';
+             ctx.lineWidth = fontSize * 0.15;
+             ctx.strokeText(text, 0, 0);
+             ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+             ctx.fillText(text, 0, 0);
+             
+             // Draw filled text clipped by progress
+             ctx.save();
+             ctx.beginPath();
+             ctx.rect(-textWidth/2 - padX, -fontSize, (textWidth + padX * 2) * progress, fontSize * 2);
+             ctx.clip();
+             
+             ctx.strokeStyle = 'black';
+             ctx.lineWidth = fontSize * 0.15;
+             ctx.strokeText(text, 0, 0);
+             ctx.fillStyle = '#FFD700';
+             ctx.fillText(text, 0, 0);
+             
+             ctx.restore();
+          }
           
-          ctx.shadowColor = 'transparent';
-          ctx.fillStyle = 'black';
-          ctx.fillText(text, 0, 0);
           ctx.restore();
         }
 
