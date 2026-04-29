@@ -70,6 +70,8 @@ export default function App() {
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const bgAudioRef = useRef<HTMLAudioElement>(null);
+  const videoContainerRef = useRef<HTMLDivElement>(null);
+  const titleDisplayRef = useRef<HTMLHeadingElement>(null);
 
   // Handle Video Upload
   const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -183,6 +185,17 @@ export default function App() {
     (sub) => currentTime >= sub.start && currentTime <= sub.end
   );
 
+  const getTitlePositionPercent = () => {
+     if (!titleDisplayRef.current || !videoContainerRef.current) return undefined;
+     const textRect = titleDisplayRef.current.getBoundingClientRect();
+     const containerRect = videoContainerRef.current.getBoundingClientRect();
+
+     return {
+        x: ((textRect.left - containerRect.left) / containerRect.width) * 100,
+        y: ((textRect.top - containerRect.top) / containerRect.height) * 100
+     };
+  };
+
   const handleExport = async () => {
     if (!videoUrl) return;
     setIsExporting(true);
@@ -197,6 +210,7 @@ export default function App() {
         subSettings,
         resolution: exportResolution as '720p' | '1080p',
         format: exportFormat,
+        titlePos: getTitlePositionPercent(),
         onProgress: (p) => setExportProgress(p)
       });
 
@@ -226,6 +240,7 @@ export default function App() {
       const fullText = subtitles.map(s => s.text).join(' ');
       const titleRes = await generateViralTitle(fullText);
       setGeneratedTitle(titleRes);
+      setTitle(titleRes);
     } catch (e) {
       console.error(e);
       alert("Failed to generate title.");
@@ -557,7 +572,7 @@ export default function App() {
 
         {/* Center: Video Preview (The core feature) */}
         <section className="order-1 lg:order-2 w-full lg:flex-1 bg-[#141416] flex items-center justify-center relative p-4 lg:p-8 h-[45vh] lg:h-full min-h-[300px] lg:min-h-0 shrink-0 lg:overflow-hidden sticky lg:static top-0 z-30 border-b border-white/10 lg:border-none shadow-2xl lg:shadow-none">
-          <div className="h-full aspect-[9/16] max-w-[85vw] lg:max-w-full lg:max-h-[680px] bg-black rounded-2xl lg:rounded-[48px] border-[4px] lg:border-[8px] border-[#2A2A2E] shadow-2xl relative overflow-hidden flex flex-col shrink-0 group mx-auto">
+          <div ref={videoContainerRef} className="h-full aspect-[9/16] max-w-[85vw] lg:max-w-full lg:max-h-[680px] bg-black rounded-2xl lg:rounded-[48px] border-[4px] lg:border-[8px] border-[#2A2A2E] shadow-2xl relative overflow-hidden flex flex-col shrink-0 group mx-auto">
             {/* Mock Video Background if no video */}
             {!videoUrl && (
               <div className="absolute inset-0 bg-gradient-to-b from-[#1a1a1a] to-[#0a0a0a] flex items-center justify-center flex-col gap-4 text-white/20">
@@ -583,21 +598,25 @@ export default function App() {
                   {/* Editorial Title (Top Area) */}
                   <div className="relative pt-16 px-8 drop-shadow-2xl">
                     <motion.h1 
+                      drag
+                      dragMomentum={false}
+                      ref={titleDisplayRef}
+                      dragConstraints={videoContainerRef}
                       initial={{ y: -20, opacity: 0 }}
                       animate={{ y: 0, opacity: 1 }}
-                      className="text-4xl font-black italic tracking-tighter text-white leading-[0.9] uppercase"
+                      className="text-4xl font-black italic tracking-tighter text-white leading-[0.9] uppercase pointer-events-auto cursor-grab active:cursor-grabbing w-fit"
                       style={{
                         textShadow: "0px 4px 12px rgba(0,0,0,0.9), 0px 0px 4px rgba(0,0,0,1)",
                       }}
                     >
                       {title.split(' ').map((word, idx, arr) => {
                         if (idx === arr.length - 1 && arr.length > 1) {
-                          return <span key={idx}><br/><span className="text-[#FFD700]">{word}</span></span>
+                          return <span key={idx} className="pointer-events-none"><br/><span className="text-[#FFD700]">{word}</span></span>
                         }
-                        return word + " ";
+                        return <span key={idx} className="pointer-events-none">{word + " "}</span>;
                       })}
                     </motion.h1>
-                    {title && <div className="w-12 h-1 bg-white mt-4 shadow-lg shadow-black"></div>}
+                    {title && <div className="w-12 h-1 bg-white mt-4 shadow-lg shadow-black pointer-events-none"></div>}
                   </div>
 
                   {/* Center Placement */}

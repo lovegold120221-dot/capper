@@ -14,6 +14,7 @@ export interface ExportOptions {
   resolution: '720p' | '1080p';
   format: string;
   onProgress: (progress: number) => void;
+  titlePos?: { x: number, y: number };
 }
 
 export async function generateThumbnail(videoUrl: string): Promise<string> {
@@ -272,8 +273,8 @@ export async function exportVideo(options: ExportOptions): Promise<Blob> {
 
         if (options.title) {
           ctx.save();
-          const leftMargin = width * 0.1;
-          let y = height * 0.15;
+          const leftMargin = options.titlePos ? (options.titlePos.x / 100) * width : width * 0.1;
+          let y = options.titlePos ? (options.titlePos.y / 100) * height : height * 0.15;
           ctx.font = `italic 900 ${Math.floor(width * 0.11)}px sans-serif`;
           ctx.textBaseline = 'top';
           ctx.shadowColor = 'rgba(0,0,0,0.9)';
