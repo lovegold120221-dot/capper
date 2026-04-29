@@ -3,6 +3,7 @@ import { Upload, Play, Pause, Save, Loader2, Music, Video, Type as TypeIcon, X, 
 import { extractAudioBase64 } from './lib/audioUtils';
 import { generateSubtitles, Subtitle } from './lib/gemini';
 import { motion, AnimatePresence } from 'motion/react';
+import UpscalerTab from './UpscalerTab';
 
 function KaraokeText({ subtitle, currentTime }: { subtitle: Subtitle, currentTime: number }) {
   const duration = subtitle.end - subtitle.start;
@@ -23,6 +24,7 @@ function KaraokeText({ subtitle, currentTime }: { subtitle: Subtitle, currentTim
 }
 
 export default function App() {
+  const [activeTab, setActiveTab] = useState<'caption' | 'movie' | 'upscaler'>('caption');
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   
@@ -289,31 +291,52 @@ export default function App() {
       <header className="border-b border-white/10 px-8 py-4 flex justify-between items-center bg-[#0F0F11]">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-[#FFD700] rounded-sm flex items-center justify-center text-black font-black italic">S</div>
-          <span className="text-xs font-bold tracking-[0.2em] uppercase opacity-70">CaptionSync Pro</span>
+          <span className="hidden md:inline text-xs font-bold tracking-[0.2em] uppercase opacity-70">CaptionSync Pro</span>
         </div>
-        <div className="flex gap-6">
-          <button 
-            onClick={handleGenerateThumbnail}
-            disabled={!videoFile || isGeneratingThumbnail}
-            className="text-[10px] uppercase tracking-widest font-bold text-white border border-white/20 px-4 py-2 rounded-full hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {isGeneratingThumbnail ? <Loader2 className="w-3 h-3 animate-spin"/> : null}
-            Generate Hook Thumbnail
-          </button>
-          <button 
-            onClick={() => setIsExportModalOpen(true)}
-            disabled={!videoFile}
-            className="text-[10px] uppercase tracking-widest font-bold text-[#FFD700] border border-[#FFD700]/30 px-4 py-2 rounded-full hover:bg-[#FFD700]/10 transition-colors disabled:opacity-30 disabled:border-white/10 disabled:text-white disabled:cursor-not-allowed"
-          >
-            Export Recap
-          </button>
-          <button onClick={() => setIsSettingsOpen(true)} className="text-[10px] flex items-center justify-center gap-1 uppercase tracking-widest font-bold opacity-70 hover:opacity-100 hover:text-[#FFD700] transition-colors">
-             <Settings className="w-3 h-3" />
-             Settings
-          </button>
+
+        {/* Tab Navigation */}
+        <div className="flex gap-2 p-1 bg-white/5 rounded-lg">
+          <button onClick={() => setActiveTab('caption')} className={`px-4 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest transition-colors ${activeTab === 'caption' ? 'bg-[#FFD700] text-black shadow-lg' : 'text-white/60 hover:text-white'}`}>Caption Sync</button>
+          <button onClick={() => setActiveTab('movie')} className={`px-4 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest transition-colors ${activeTab === 'movie' ? 'bg-[#FFD700] text-black shadow-lg' : 'text-white/60 hover:text-white'}`}>Movie Recorder</button>
+          <button onClick={() => setActiveTab('upscaler')} className={`px-4 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest transition-colors ${activeTab === 'upscaler' ? 'bg-[#FFD700] text-black shadow-lg' : 'text-white/60 hover:text-white'}`}>Upscaler</button>
+        </div>
+
+        <div className="flex gap-4">
+          {activeTab === 'caption' && (
+            <>
+              <button 
+                onClick={handleGenerateThumbnail}
+                disabled={!videoFile || isGeneratingThumbnail}
+                className="text-[10px] uppercase tracking-widest font-bold text-white border border-white/20 px-4 py-2 rounded-full hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isGeneratingThumbnail ? <Loader2 className="w-3 h-3 animate-spin"/> : null}
+                Generate Hook Thumbnail
+              </button>
+              <button 
+                onClick={() => setIsExportModalOpen(true)}
+                disabled={!videoFile}
+                className="text-[10px] uppercase tracking-widest font-bold text-[#FFD700] border border-[#FFD700]/30 px-4 py-2 rounded-full hover:bg-[#FFD700]/10 transition-colors disabled:opacity-30 disabled:border-white/10 disabled:text-white disabled:cursor-not-allowed hidden xl:block"
+              >
+                Export Recap
+              </button>
+              <button onClick={() => setIsSettingsOpen(true)} className="text-[10px] flex items-center justify-center gap-1 uppercase tracking-widest font-bold opacity-70 hover:opacity-100 hover:text-[#FFD700] transition-colors">
+                <Settings className="w-3 h-3" />
+                Settings
+              </button>
+            </>
+          )}
         </div>
       </header>
 
+      {activeTab === 'movie' && (
+        <iframe src="/movie.html" className="w-full flex-1 border-none" allow="display-capture; camera; microphone; fullscreen" />
+      )}
+      
+      {activeTab === 'upscaler' && (
+        <UpscalerTab />
+      )}
+
+      {activeTab === 'caption' && (
       <main className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         {/* Left Sidebar: Controls */}
         <aside className="w-full lg:w-80 border-r border-white/10 p-8 flex flex-col gap-10 overflow-y-auto shrink-0 custom-scrollbar h-full min-h-0">
@@ -584,6 +607,7 @@ export default function App() {
           </div>
         </aside>
       </main>
+      )}
 
       {/* Global styles for custom scrollbar */}
       <style dangerouslySetInnerHTML={{__html: `
