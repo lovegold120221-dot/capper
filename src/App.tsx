@@ -797,6 +797,61 @@ export default function App() {
               </div>
               
               <div className="p-8 space-y-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
+
+                {/* Real-time Preview Area */}
+                <div className="space-y-4">
+                  <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 block">Style Preview</label>
+                  <div className="relative w-full h-[200px] bg-[#1a1a1a] rounded-xl overflow-hidden flex items-center justify-center border border-white/10 shadow-inner">
+                    {/* Fake generic video background pattern */}
+                    <div className="absolute inset-0 opacity-10 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white via-black to-black"></div>
+                    <div className="absolute inset-0 flex items-center justify-center flex-col gap-2 opacity-10">
+                       <Video className="w-12 h-12" />
+                    </div>
+                    
+                    {/* The Preview Subtitle */}
+                    <div className="relative z-10 w-full px-8 pb-[10%] pt-[10%] flex flex-col justify-end items-center h-full">
+                      <div className="w-full flex justify-center text-center">
+                        {(() => {
+                           const { font, size, style } = subSettings;
+                           let fontClass = 'font-sans';
+                           let addedClasses = 'italic';
+                           if (font === 'serif') fontClass = 'font-serif';
+                           if (font === 'mono') { fontClass = 'font-mono'; addedClasses = 'uppercase'; }
+                           if (font === 'impact') { fontClass = 'font-sans opacity-90'; addedClasses = 'uppercase tracking-tighter'; }
+
+                           const sizeMap: Record<string, string> = { sm: 'text-xl md:text-2xl', md: 'text-2xl md:text-3xl', lg: 'text-4xl md:text-4xl', xl: 'text-5xl md:text-5xl' };
+                           const fontSizeClass = sizeMap[size];
+                           
+                           const text = "This is a preview!";
+
+                           return (
+                             <div className={`${fontSizeClass} font-black ${addedClasses} tracking-tight text-center leading-snug w-full select-none ${fontClass}`}>
+                               {style === 'block' && (
+                                 <span className="bg-[#FFD700] text-black px-3 py-1 inline-block transform -rotate-2 uppercase shadow-xl">
+                                   {text}
+                                 </span>
+                               )}
+                               {style === 'stroke' && (
+                                 <span 
+                                   className="text-white transform -rotate-2 inline-block uppercase drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]"
+                                   style={{ WebkitTextStroke: '2px black' }}
+                                 >
+                                   {text}
+                                 </span>
+                               )}
+                               {style === 'karaoke' && (
+                                 <span className="text-white inline-block font-black uppercase transform -rotate-2">
+                                     <span className="text-[#FFD700] inline-block mb-1" style={{ textShadow: '0 2px 10px rgba(255,215,0,0.5)' }}>This is</span>
+                                     <span className="opacity-40 inline-block mb-1 ml-2">a preview!</span>
+                                 </span>
+                               )}
+                             </div>
+                           );
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 
                 {/* Font Selector */}
                 <div className="space-y-4">
