@@ -24,6 +24,10 @@ export default function App() {
   const [exportFormat, setExportFormat] = useState("MP4");
   const [isExporting, setIsExporting] = useState(false);
   
+  // Subtitle Settings
+  const [subFont, setSubFont] = useState<'sans' | 'serif' | 'mono'>('sans');
+  const [subPos, setSubPos] = useState<'bottom' | 'center'>('bottom');
+  
   const videoRef = useRef<HTMLVideoElement>(null);
   const bgAudioRef = useRef<HTMLAudioElement>(null);
 
@@ -147,6 +151,30 @@ export default function App() {
       setIsExportModalOpen(false);
       alert(`Exported successfully as ${exportResolution} ${exportFormat}`);
     }, 2000);
+  };
+
+  const renderSubtitles = () => {
+    const fontClass = subFont === 'serif' ? 'font-serif' : subFont === 'mono' ? 'font-mono' : 'font-sans';
+    const italicClass = subFont !== 'mono' ? 'italic' : '';
+    return (
+      <AnimatePresence mode="wait">
+        {activeSubtitle && (
+          <motion.div
+            key={activeSubtitle.start}
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.1 } }}
+            className={`text-2xl md:text-3xl font-black ${italicClass} tracking-tight text-center leading-snug w-full select-none ${fontClass}`}
+          >
+            <span 
+              className="bg-[#FFD700] text-black px-3 py-1 inline-block transform -rotate-2 uppercase shadow-xl"
+            >
+              {activeSubtitle.text}
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    );
   };
 
   const formatTime = (seconds: number) => {
@@ -316,27 +344,18 @@ export default function App() {
                     {title && <div className="w-12 h-1 bg-white mt-4 shadow-lg shadow-black"></div>}
                   </div>
 
+                  {/* Center Placement */}
+                  {subPos === 'center' && (
+                    <div className="absolute inset-0 flex items-center justify-center px-8 z-20 pointer-events-none mt-16">
+                      {renderSubtitles()}
+                    </div>
+                  )}
+
                   {/* Bottom: Video UI Overlays */}
                   <div className="pb-8 px-8 space-y-6 relative">
                     {/* Karaoke Subtitles */}
                     <div className="flex justify-center w-full min-h-[120px] items-end">
-                      <AnimatePresence mode="wait">
-                        {activeSubtitle && (
-                          <motion.div
-                            key={activeSubtitle.start}
-                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.1 } }}
-                            className="text-2xl md:text-3xl font-black italic tracking-tight text-center leading-snug w-full select-none"
-                          >
-                            <span 
-                              className="bg-[#FFD700] text-black px-3 py-1 inline-block transform -rotate-2 uppercase shadow-xl"
-                            >
-                              {activeSubtitle.text}
-                            </span>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
+                      {subPos === 'bottom' && renderSubtitles()}
                     </div>
                     
                     {/* Progress Bar */}
@@ -388,13 +407,33 @@ export default function App() {
             )}
           </div>
 
-          {/* Floating Action Button Mock */}
-          <div className="mt-12 p-6 rounded-2xl bg-white/5 border border-white/10 sticky bottom-0 backdrop-blur-md">
-            <p className="text-[10px] uppercase tracking-widest font-bold opacity-40 mb-4">Subtitle Style</p>
-            <div className="flex gap-3">
-              <div className="w-8 h-8 rounded border border-white/20 flex items-center justify-center text-[10px] font-bold cursor-pointer hover:bg-white/10 transition-colors">Aa</div>
-              <div className="w-8 h-8 rounded border border-[#FFD700] bg-[#FFD700]/10 flex items-center justify-center text-[10px] font-black italic text-[#FFD700] cursor-pointer">Aa</div>
-              <div className="w-8 h-8 rounded border border-white/20 flex items-center justify-center text-[10px] font-serif cursor-pointer hover:bg-white/10 transition-colors">Aa</div>
+          {/* Subtitle Style Options */}
+          <div className="mt-12 p-6 rounded-2xl bg-white/5 border border-white/10 sticky bottom-0 backdrop-blur-md space-y-6">
+            <div>
+              <p className="text-[10px] uppercase tracking-widest font-bold opacity-40 mb-3">Subtitle Font</p>
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setSubFont('sans')}
+                  className={`w-10 h-10 rounded-lg border flex items-center justify-center text-[12px] font-sans font-bold transition-colors ${subFont === 'sans' ? 'border-[#FFD700] bg-[#FFD700]/10 text-[#FFD700]' : 'border-white/20 text-white hover:bg-white/10'}`}>Aa</button>
+                <button 
+                  onClick={() => setSubFont('serif')}
+                  className={`w-10 h-10 rounded-lg border flex items-center justify-center text-[12px] font-serif font-black italic transition-colors ${subFont === 'serif' ? 'border-[#FFD700] bg-[#FFD700]/10 text-[#FFD700]' : 'border-white/20 text-white hover:bg-white/10'}`}>Aa</button>
+                <button 
+                  onClick={() => setSubFont('mono')}
+                  className={`w-10 h-10 rounded-lg border flex items-center justify-center text-[12px] font-mono font-bold uppercase transition-colors ${subFont === 'mono' ? 'border-[#FFD700] bg-[#FFD700]/10 text-[#FFD700]' : 'border-white/20 text-white hover:bg-white/10'}`}>Aa</button>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-[10px] uppercase tracking-widest font-bold opacity-40 mb-3">Placement</p>
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setSubPos('center')}
+                  className={`flex-1 py-2 rounded-lg border text-[10px] font-bold tracking-widest uppercase transition-colors ${subPos === 'center' ? 'border-[#FFD700] bg-[#FFD700]/10 text-[#FFD700]' : 'border-white/20 text-white hover:bg-white/10'}`}>Center</button>
+                <button 
+                  onClick={() => setSubPos('bottom')}
+                  className={`flex-1 py-2 rounded-lg border text-[10px] font-bold tracking-widest uppercase transition-colors ${subPos === 'bottom' ? 'border-[#FFD700] bg-[#FFD700]/10 text-[#FFD700]' : 'border-white/20 text-white hover:bg-white/10'}`}>Bottom</button>
+              </div>
             </div>
           </div>
         </aside>
