@@ -23,6 +23,7 @@ export default function App() {
   const [exportResolution, setExportResolution] = useState("1080p");
   const [exportFormat, setExportFormat] = useState("MP4");
   const [isExporting, setIsExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0);
   
   // Subtitle Settings
   const [subFont, setSubFont] = useState<'sans' | 'serif' | 'mono'>('sans');
@@ -143,14 +144,41 @@ export default function App() {
     (sub) => currentTime >= sub.start && currentTime <= sub.end
   );
 
-  const handleExport = () => {
+  const handleExport = async () => {
+    if (!videoUrl) return;
     setIsExporting(true);
-    // Mock export delay
-    setTimeout(() => {
-      setIsExporting(false);
+    setExportProgress(0);
+    try {
+      const { exportVideo } = await import('./lib/exportUtils');
+      const blob = await exportVideo({
+        videoUrl,
+        bgAudioUrl,
+        subtitles,
+        title,
+        subFont,
+        subPos,
+        resolution: exportResolution as '720p' | '1080p',
+        format: exportFormat,
+        onProgress: (p) => setExportProgress(p)
+      });
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
+      a.download = `caption_sync_${Date.now()}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      
       setIsExportModalOpen(false);
-      alert(`Exported successfully as ${exportResolution} ${exportFormat}`);
-    }, 2000);
+    } catch (err) {
+      console.error(err);
+      alert("Export failed: " + (err as Error).message);
+    } finally {
+      setIsExporting(false);
+      setExportProgress(0);
+    }
   };
 
   const renderSubtitles = () => {
@@ -194,7 +222,8 @@ export default function App() {
         <div className="flex gap-6">
           <button 
             onClick={() => setIsExportModalOpen(true)}
-            className="text-[10px] uppercase tracking-widest font-bold text-[#FFD700] border border-[#FFD700]/30 px-4 py-2 rounded-full hover:bg-[#FFD700]/10 transition-colors"
+            disabled={!videoFile}
+            className="text-[10px] uppercase tracking-widest font-bold text-[#FFD700] border border-[#FFD700]/30 px-4 py-2 rounded-full hover:bg-[#FFD700]/10 transition-colors disabled:opacity-30 disabled:border-white/10 disabled:text-white disabled:cursor-not-allowed"
           >
             Export Recap
           </button>
@@ -534,20 +563,28 @@ export default function App() {
                 </button>
                 <button 
                   onClick={handleExport}
-                  disabled={isExporting}
-                  className="bg-[#FFD700] hover:bg-[#FFD700]/80 disabled:bg-[#FFD700]/20 disabled:text-white/40 text-black font-black uppercase tracking-widest text-[10px] px-8 py-3 rounded-full transition-all flex items-center justify-center gap-2"
+                  disabled={isExporting || !videoFile}
+                  className="relative bg-[#FFD700] hover:bg-[#FFD700]/80 disabled:bg-[#FFD700]/20 disabled:text-white/40 text-black font-black uppercase tracking-widest text-[10px] px-8 py-3 rounded-full transition-all flex items-center justify-center gap-2 overflow-hidden"
                 >
-                  {isExporting ? (
-                    <>
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      Exporting...
-                    </>
-                  ) : (
-                    <>
-                      <Download className="w-3 h-3" />
-                      Export
-                    </>
+                  {isExporting && (
+                    <div 
+                      className="absolute left-0 top-0 bottom-0 bg-[#FFD700]/40 transition-all duration-200 ease-out" 
+                      style={{ width: `${exportProgress * 100}%` }}
+                    />
                   )}
+                  <div className="relative z-10 flex items-center gap-2">
+                    {isExporting ? (
+                      <>
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        {Math.round(exportProgress * 100)}%
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-3 h-3" />
+                        Export
+                      </>
+                    )}
+                  </div>
                 </button>
               </div>
             </motion.div>
