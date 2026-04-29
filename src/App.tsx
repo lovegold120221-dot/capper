@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Upload, Play, Pause, Save, Loader2, Music, Video, Type as TypeIcon } from 'lucide-react';
+import { Upload, Play, Pause, Save, Loader2, Music, Video, Type as TypeIcon, X, Download } from 'lucide-react';
 import { extractAudioBase64 } from './lib/audioUtils';
 import { generateSubtitles, Subtitle } from './lib/gemini';
 import { motion, AnimatePresence } from 'motion/react';
@@ -17,6 +17,12 @@ export default function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  
+  // Export Modal State
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [exportResolution, setExportResolution] = useState("1080p");
+  const [exportFormat, setExportFormat] = useState("MP4");
+  const [isExporting, setIsExporting] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const bgAudioRef = useRef<HTMLAudioElement>(null);
@@ -133,6 +139,16 @@ export default function App() {
     (sub) => currentTime >= sub.start && currentTime <= sub.end
   );
 
+  const handleExport = () => {
+    setIsExporting(true);
+    // Mock export delay
+    setTimeout(() => {
+      setIsExporting(false);
+      setIsExportModalOpen(false);
+      alert(`Exported successfully as ${exportResolution} ${exportFormat}`);
+    }, 2000);
+  };
+
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = Math.floor(seconds % 60);
@@ -148,7 +164,12 @@ export default function App() {
           <span className="text-xs font-bold tracking-[0.2em] uppercase opacity-70">CaptionSync Pro</span>
         </div>
         <div className="flex gap-6">
-          <button className="text-[10px] uppercase tracking-widest font-bold text-[#FFD700] border border-[#FFD700]/30 px-4 py-2 rounded-full hover:bg-[#FFD700]/10 transition-colors">Export Recap</button>
+          <button 
+            onClick={() => setIsExportModalOpen(true)}
+            className="text-[10px] uppercase tracking-widest font-bold text-[#FFD700] border border-[#FFD700]/30 px-4 py-2 rounded-full hover:bg-[#FFD700]/10 transition-colors"
+          >
+            Export Recap
+          </button>
           <button className="text-[10px] uppercase tracking-widest font-bold opacity-40 hover:opacity-100 transition-opacity">Settings</button>
         </div>
       </header>
@@ -395,6 +416,106 @@ export default function App() {
           background: rgba(255, 255, 255, 0.2);
         }
       `}} />
+
+      {/* Export Modal */}
+      <AnimatePresence>
+        {isExportModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+              onClick={() => !isExporting && setIsExportModalOpen(false)}
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-md bg-[#141416] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+            >
+              <div className="border-b border-white/10 px-6 py-4 flex justify-between items-center bg-[#0F0F11]">
+                <h3 className="text-[10px] uppercase tracking-[0.3em] font-bold text-[#FFD700]">Export Details</h3>
+                <button 
+                  onClick={() => !isExporting && setIsExportModalOpen(false)}
+                  className="opacity-40 hover:opacity-100 transition-opacity disabled:opacity-20"
+                  disabled={isExporting}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-8">
+                <div className="space-y-4">
+                  <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 block">Resolution</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {["720p", "1080p"].map(res => (
+                      <button
+                        key={res}
+                        onClick={() => setExportResolution(res)}
+                        className={`py-3 rounded-lg border text-xs font-bold tracking-widest transition-all ${
+                          exportResolution === res 
+                            ? "border-[#FFD700] bg-[#FFD700]/10 text-[#FFD700]" 
+                            : "border-white/10 bg-white/5 opacity-60 hover:opacity-100 hover:border-white/30"
+                        }`}
+                      >
+                        {res}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 block">Format</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {["MP4", "MOV"].map(fmt => (
+                      <button
+                        key={fmt}
+                        onClick={() => setExportFormat(fmt)}
+                        className={`py-3 rounded-lg border text-xs font-bold tracking-widest transition-all ${
+                          exportFormat === fmt 
+                            ? "border-[#FFD700] bg-[#FFD700]/10 text-[#FFD700]" 
+                            : "border-white/10 bg-white/5 opacity-60 hover:opacity-100 hover:border-white/30"
+                        }`}
+                      >
+                        {fmt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-white/10 p-6 bg-[#0F0F11] flex justify-end gap-4">
+                <button 
+                  onClick={() => setIsExportModalOpen(false)}
+                  disabled={isExporting}
+                  className="text-[10px] uppercase tracking-widest font-bold opacity-60 hover:opacity-100 transition-opacity px-6 py-3 disabled:opacity-30"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleExport}
+                  disabled={isExporting}
+                  className="bg-[#FFD700] hover:bg-[#FFD700]/80 disabled:bg-[#FFD700]/20 disabled:text-white/40 text-black font-black uppercase tracking-widest text-[10px] px-8 py-3 rounded-full transition-all flex items-center justify-center gap-2"
+                >
+                  {isExporting ? (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Exporting...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-3 h-3" />
+                      Export
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }
