@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Upload, Play, Pause, Save, Loader2, Music, Video, Type as TypeIcon, X, Download, Settings } from 'lucide-react';
+import { Upload, Play, Pause, Save, Loader2, Music, Video, Type as TypeIcon, X, Download, Settings, Wand2 } from 'lucide-react';
 import { extractAudioBase64 } from './lib/audioUtils';
 import { generateSubtitles, Subtitle } from './lib/gemini';
 import { motion, AnimatePresence } from 'motion/react';
@@ -45,6 +45,9 @@ export default function App() {
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [isGeneratingThumbnail, setIsGeneratingThumbnail] = useState(false);
+  
+  const [isUpscalingMain, setIsUpscalingMain] = useState(false);
+  const [upscaleProgressMain, setUpscaleProgressMain] = useState(0);
   
   // Subtitle Settings
   const [subSettings, setSubSettings] = useState(() => {
@@ -235,6 +238,26 @@ export default function App() {
     }
   };
 
+  const handleUpscaleMain = () => {
+    if (!videoUrl) return;
+    setIsUpscalingMain(true);
+    setUpscaleProgressMain(0);
+
+    // Mock upscaling process
+    const interval = setInterval(() => {
+      setUpscaleProgressMain((prev) => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          setIsUpscalingMain(false);
+          alert("Upscaled video successfully (Mock)!");
+          // Fallback to original is mocked since we are setting videoUrl to the same
+          return 100;
+        }
+        return prev + 5;
+      });
+    }, 200);
+  };
+
   const renderSubtitles = () => {
     const { font, size, style } = subSettings;
     
@@ -304,6 +327,14 @@ export default function App() {
         <div className="flex gap-4">
           {activeTab === 'caption' && (
             <>
+              <button 
+                onClick={handleUpscaleMain}
+                disabled={!videoFile || isUpscalingMain}
+                className="text-[10px] uppercase tracking-widest font-bold text-[#FFD700] border border-[#FFD700]/30 px-4 py-2 rounded-full hover:bg-[#FFD700]/10 transition-colors disabled:opacity-30 disabled:border-white/10 disabled:text-white disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isUpscalingMain ? <Loader2 className="w-3 h-3 animate-spin"/> : <Wand2 className="w-3 h-3" />}
+                {isUpscalingMain ? `Upscaling ${upscaleProgressMain}%` : 'Upscale'}
+              </button>
               <button 
                 onClick={handleGenerateThumbnail}
                 disabled={!videoFile || isGeneratingThumbnail}
