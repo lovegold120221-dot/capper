@@ -82,29 +82,34 @@ export async function generateThumbnail(videoUrl: string): Promise<string> {
         ctx.translate(width/2, height * 0.75);
         ctx.rotate(-4 * Math.PI / 180);
 
-        ctx.font = `italic 900 ${Math.floor(width * 0.15)}px Impact, sans-serif`;
+        ctx.font = `italic 900 ${Math.floor(width * 0.18)}px Impact, sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
         const text = hookText.toUpperCase();
         
         // Stroke
-        ctx.shadowColor = 'rgba(0,0,0,1)';
-        ctx.shadowBlur = 20;
-        ctx.shadowOffsetY = 10;
+        ctx.shadowColor = '#FF0055';
+        ctx.shadowBlur = 40;
+        ctx.shadowOffsetY = 0;
         ctx.strokeStyle = 'black';
-        ctx.lineWidth = width * 0.04;
+        ctx.lineWidth = width * 0.05;
         ctx.strokeText(text, 0, 0);
 
         // Gradient Fill
         const textGrad = ctx.createLinearGradient(0, -height*0.1, 0, height*0.1);
         textGrad.addColorStop(0, '#FFFFFF');
         textGrad.addColorStop(0.5, '#FFD700');
-        textGrad.addColorStop(1, '#FF8C00');
+        textGrad.addColorStop(1, '#FF4500');
         ctx.fillStyle = textGrad;
         
         ctx.shadowColor = 'transparent';
         ctx.fillText(text, 0, 0);
+        
+        // Add minimal highlight inside
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.lineWidth = width * 0.005;
+        ctx.strokeText(text, -2, -2);
         
         ctx.restore();
 
@@ -116,6 +121,35 @@ export async function generateThumbnail(videoUrl: string): Promise<string> {
 
     video.onerror = () => reject(new Error('Failed to load video for thumbnail'));
   });
+}
+
+function addAutoBGM(audioCtx: AudioContext, destination: AudioNode, duration: number) {
+  const chords = [
+    [261.63, 329.63, 392.00], // C4, E4, G4
+    [220.00, 261.63, 329.63], // A3, C4, E4
+    [174.61, 220.00, 261.63], // F3, A3, C4
+    [196.00, 246.94, 293.66], // G3, B3, D4
+  ];
+  
+  for (let i = 0; i < duration; i += 4) {
+     const chord = chords[Math.floor(i / 4) % chords.length];
+     chord.forEach((freq) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+        
+        gain.gain.setValueAtTime(0, audioCtx.currentTime + i);
+        gain.gain.linearRampToValueAtTime(0.04, audioCtx.currentTime + i + 2);
+        gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + i + 4);
+        
+        osc.connect(gain);
+        gain.connect(destination);
+        
+        osc.start(audioCtx.currentTime + i);
+        osc.stop(audioCtx.currentTime + i + 4);
+     });
+  }
 }
 
 export async function exportVideo(options: ExportOptions): Promise<Blob> {
@@ -169,6 +203,9 @@ export async function exportVideo(options: ExportOptions): Promise<Blob> {
         bgGain.gain.value = 0.15;
         bgSource.connect(bgGain);
         bgGain.connect(destCtx);
+      } else {
+        const duration = video.duration || 60;
+        addAutoBGM(audioCtx, destCtx, duration);
       }
 
       const streamFrameRate = 30;

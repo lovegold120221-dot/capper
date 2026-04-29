@@ -57,6 +57,26 @@ export async function generateSubtitles(base64Audio: string): Promise<Subtitle[]
   }
 }
 
+export async function generateViralTitle(transcript: string): Promise<string> {
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3.1-8b",
+      contents: [
+        { text: `Analyze this transcript/subtitles and generate a SINGLE eye-catchy, quotable, unique, and hooking title for social media (e.g., YouTube Shorts or TikTok). It should be maximum 6 words. Do not use quotes around it. Just return the title text.\n\nTranscript:\n${transcript}` }
+      ],
+      config: {
+        systemInstruction: "You are an expert social media copywriter specializing in viral hooks.",
+        temperature: 0.8,
+      },
+    });
+
+    return response.text?.trim().replace(/["']/g, '') || "Watch This Incredible Moment!";
+  } catch (error) {
+    console.error("Failed to generate title:", error);
+    return "MIND BLOWN!";
+  }
+}
+
 export async function generateThumbnailHook(base64Image: string): Promise<string> {
   try {
     const response = await ai.models.generateContent({

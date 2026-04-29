@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Upload, Play, Pause, Save, Loader2, Music, Video, Type as TypeIcon, X, Download, Settings, Wand2 } from 'lucide-react';
 import { extractAudioBase64 } from './lib/audioUtils';
-import { generateSubtitles, Subtitle } from './lib/gemini';
+import { generateSubtitles, Subtitle, generateViralTitle } from './lib/gemini';
 import { motion, AnimatePresence } from 'motion/react';
 import UpscalerTab from './UpscalerTab';
 
@@ -49,6 +49,9 @@ export default function App() {
   const [isUpscalingMain, setIsUpscalingMain] = useState(false);
   const [upscaleProgressMain, setUpscaleProgressMain] = useState(0);
   
+  const [generatedTitle, setGeneratedTitle] = useState("");
+  const [isGeneratingTitle, setIsGeneratingTitle] = useState(false);
+
   // Subtitle Settings
   const [subSettings, setSubSettings] = useState(() => {
     const saved = localStorage.getItem('captionSyncSettings');
@@ -238,24 +241,97 @@ export default function App() {
     }
   };
 
-  const handleUpscaleMain = () => {
-    if (!videoUrl) return;
+  const handleGenerateTitle = async () => {
+    if (subtitles.length === 0) return;
+    setIsGeneratingTitle(true);
+    try {
+      const fullText = subtitles.map(s => s.text).join(' ');
+      const titleRes = await generateViralTitle(fullText);
+      setGeneratedTitle(titleRes);
+    } catch (e) {
+      console.error(e);
+      alert("Failed to generate title.");
+    } finally {
+      setIsGeneratingTitle(false);
+    }
+  };
+
+  const handleUpscaleMain = async () => {
+    if (!videoUrl || !videoFile) return;
     setIsUpscalingMain(true);
     setUpscaleProgressMain(0);
 
-    // Mock upscaling process
-    const interval = setInterval(() => {
-      setUpscaleProgressMain((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setIsUpscalingMain(false);
-          alert("Upscaled video successfully (Mock)!");
-          // Fallback to original is mocked since we are setting videoUrl to the same
-          return 100;
-        }
-        return prev + 5;
-      });
-    }, 200);
+    const video = document.createElement('video');
+    video.src = videoUrl;
+    video.muted = true;
+    video.crossOrigin = 'anonymous';
+
+    await new Promise<void>((resolve, reject) => {
+      video.onloadeddata = () => resolve();
+      video.onerror = () => reject(new Error('Failed to load video'));
+    });
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth * 1.5;
+    canvas.height = video.videoHeight * 1.5;
+    const ctx = canvas.getContext('2d')!;
+
+    // Faux AI enhancement
+    ctx.filter = 'contrast(1.1) saturate(1.2) drop-shadow(0px 0px 1px rgba(0,0,0,0.5))';
+
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    const audioCtx = new AudioContextClass();
+    const destCtx = audioCtx.createMediaStreamDestination();
+    const source = audioCtx.createMediaElementSource(video);
+    source.connect(destCtx);
+
+    const streamFrameRate = 30;
+    const stream = (canvas as any).captureStream(streamFrameRate) as MediaStream;
+    destCtx.stream.getAudioTracks().forEach((t: MediaStreamTrack) => stream.addTrack(t));
+
+    let mimeType = 'video/webm;codecs=vp8,opus';
+    if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')) {
+      mimeType = 'video/webm;codecs=vp9,opus';
+    }
+
+    let mediaRecorder: MediaRecorder;
+    try {
+      mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8000000 });
+    } catch (e) {
+      mediaRecorder = new MediaRecorder(stream);
+    }
+
+    const chunks: Blob[] = [];
+    mediaRecorder.ondataavailable = e => {
+      if (e.data && e.data.size > 0) chunks.push(e.data);
+    };
+
+    mediaRecorder.onstop = () => {
+      audioCtx.close();
+      const blob = new Blob(chunks, { type: mimeType });
+      const newUrl = URL.createObjectURL(blob);
+      const newFile = new File([blob], "upscaled_" + videoFile.name, { type: mimeType });
+      setVideoUrl(newUrl);
+      setVideoFile(newFile);
+      setIsUpscalingMain(false);
+      alert("Upscaled video successfully!");
+    };
+
+    mediaRecorder.start(100);
+    await video.play();
+
+    const drawFrame = () => {
+      if (video.ended || video.paused) {
+        mediaRecorder.stop();
+        return;
+      }
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const curProgress = Math.floor((video.currentTime / (video.duration || 1)) * 100);
+      setUpscaleProgressMain(Math.min(100, curProgress));
+      requestAnimationFrame(drawFrame);
+    };
+
+    drawFrame();
   };
 
   const renderSubtitles = () => {
@@ -337,6 +413,15 @@ export default function App() {
                 <span className="hidden md:inline">{isUpscalingMain ? `Upscaling ${upscaleProgressMain}%` : 'Upscale'}</span>
               </button>
               <button 
+                onClick={handleGenerateTitle}
+                disabled={subtitles.length === 0 || isGeneratingTitle}
+                className="text-[10px] uppercase tracking-widest font-bold text-white border border-white/20 p-2 md:px-4 md:py-2 rounded-full hover:bg-white/10 transition-colors disabled:opacity-30 flex items-center justify-center gap-1.5"
+                title="Generate Viral Title"
+              >
+                {isGeneratingTitle ? <Loader2 className="w-4 h-4 md:w-3 md:h-3 animate-spin"/> : <TypeIcon className="w-4 h-4 md:hidden" />}
+                {!isGeneratingTitle && <span className="hidden md:inline">Generate Title</span>}
+              </button>
+              <button 
                 onClick={handleGenerateThumbnail}
                 disabled={!videoFile || isGeneratingThumbnail}
                 className="text-[10px] uppercase tracking-widest font-bold text-white border border-white/20 p-2 md:px-4 md:py-2 rounded-full hover:bg-white/10 transition-colors disabled:opacity-30 flex items-center justify-center gap-1.5"
@@ -364,7 +449,7 @@ export default function App() {
       </header>
 
       {activeTab === 'movie' && (
-        <iframe src="/movie.html" className="w-full flex-1 border-none mb-[65px] md:mb-0" allow="display-capture; camera; microphone; fullscreen" />
+        <iframe src="https://movie.eburon.ai/" className="w-full flex-1 border-none mb-[65px] md:mb-0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen; display-capture; camera; microphone" allowFullScreen />
       )}
       
       {activeTab === 'upscaler' && (
@@ -579,6 +664,14 @@ export default function App() {
 
         {/* Right Sidebar: Live Transcription & Settings */}
         <aside className="order-3 w-full lg:w-80 lg:border-l border-t lg:border-t-0 border-white/10 flex flex-col shrink-0 bg-[#0A0A0B]/50 lg:bg-[#0A0A0B]/50 relative lg:h-full min-h-0 lg:overflow-hidden z-10">
+          
+          {generatedTitle && (
+            <div className="p-5 lg:p-8 shrink-0 border-b border-white/5 bg-[#FFD700]/10 border-l-4 border-l-[#FFD700]">
+              <h3 className="text-[10px] uppercase tracking-[0.3em] font-bold text-[#FFD700] mb-2">Viral Title Idea</h3>
+              <p className="text-white font-italic text-sm font-bold opacity-90 leading-tight">"{generatedTitle}"</p>
+            </div>
+          )}
+
           <div className="p-5 lg:p-8 pb-4 shrink-0 border-t border-white/5 lg:border-none">
             <h3 className="text-[10px] uppercase tracking-[0.3em] font-bold text-[#FFD700]">Live Transcript</h3>
           </div>

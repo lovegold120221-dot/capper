@@ -15,23 +15,79 @@ export default function UpscalerTab() {
     }
   };
 
-  const handleUpscale = () => {
+  const handleUpscale = async () => {
     if (!file) return;
     setIsUpscaling(true);
     setProgress(0);
 
-    // Mock upscaling process
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setIsUpscaling(false);
-          setUpscaledUrl(URL.createObjectURL(file)); // Fallback to original
-          return 100;
-        }
-        return prev + 5;
-      });
-    }, 200);
+    const video = document.createElement('video');
+    video.src = URL.createObjectURL(file);
+    video.muted = true;
+    video.crossOrigin = 'anonymous'; 
+    
+    await new Promise<void>((resolve, reject) => {
+      video.onloadeddata = () => resolve();
+      video.onerror = () => reject(new Error('Failed to load video'));
+    });
+
+    const canvas = document.createElement('canvas');
+    // Scale up by 1.5x (faux upscaling)
+    canvas.width = video.videoWidth * 1.5;
+    canvas.height = video.videoHeight * 1.5;
+    const ctx = canvas.getContext('2d')!;
+
+    // Apply some visual enhancements to simulate AI upscaling
+    ctx.filter = 'contrast(1.1) saturate(1.2) drop-shadow(0px 0px 1px rgba(0,0,0,0.5))';
+
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    const audioCtx = new AudioContextClass();
+    const destCtx = audioCtx.createMediaStreamDestination();
+    const source = audioCtx.createMediaElementSource(video);
+    source.connect(destCtx);
+
+    const streamFrameRate = 30;
+    const stream = (canvas as any).captureStream(streamFrameRate) as MediaStream;
+    destCtx.stream.getAudioTracks().forEach((t: MediaStreamTrack) => stream.addTrack(t));
+
+    let mimeType = 'video/webm;codecs=vp8,opus';
+    if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')) {
+      mimeType = 'video/webm;codecs=vp9,opus';
+    }
+
+    let mediaRecorder: MediaRecorder;
+    try {
+      mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8000000 });
+    } catch (e) {
+      mediaRecorder = new MediaRecorder(stream);
+    }
+
+    const chunks: Blob[] = [];
+    mediaRecorder.ondataavailable = e => {
+      if (e.data && e.data.size > 0) chunks.push(e.data);
+    };
+
+    mediaRecorder.onstop = () => {
+      audioCtx.close();
+      const blob = new Blob(chunks, { type: mimeType });
+      setUpscaledUrl(URL.createObjectURL(blob));
+      setIsUpscaling(false);
+    };
+
+    mediaRecorder.start(100);
+    await video.play();
+
+    const drawFrame = () => {
+      if (video.ended || video.paused) {
+        mediaRecorder.stop();
+        return;
+      }
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const curProgress = Math.floor((video.currentTime / (video.duration || 1)) * 100);
+      setProgress(Math.min(100, curProgress));
+      requestAnimationFrame(drawFrame);
+    };
+
+    drawFrame();
   };
 
   return (
