@@ -24,6 +24,22 @@ function KaraokeText({ subtitle, currentTime }: { subtitle: Subtitle, currentTim
   );
 }
 
+const ROYALTY_FREE_LIBRARY = [
+  { id: '1', title: 'Lofi Study', genre: 'Lofi', mood: 'Chill', url: 'https://assets.mixkit.co/music/preview/mixkit-hip-hop-02-738.mp3', duration: '2:14' },
+  { id: '2', title: 'Cinematic Dream', genre: 'Cinematic', mood: 'Dramatic', url: 'https://assets.mixkit.co/music/preview/mixkit-life-is-a-dream-837.mp3', duration: '3:05' },
+  { id: '3', title: 'Tech House Vibes', genre: 'Electronic', mood: 'Energetic', url: 'https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3', duration: '2:40' },
+  { id: '4', title: 'Dreaming Big', genre: 'Pop', mood: 'Uplifting', url: 'https://assets.mixkit.co/music/preview/mixkit-dreaming-big-31.mp3', duration: '1:50' },
+  { id: '5', title: 'Driving Ambition', genre: 'Rock', mood: 'Energetic', url: 'https://assets.mixkit.co/music/preview/mixkit-driving-ambition-32.mp3', duration: '2:25' },
+  { id: '6', title: 'Hustle and Bounce', genre: 'Hip Hop', mood: 'Aggressive', url: 'https://assets.mixkit.co/music/preview/mixkit-hustle-and-bounce-111.mp3', duration: '1:40' },
+  { id: '7', title: 'Deep Urban', genre: 'Hip Hop', mood: 'Chill', url: 'https://assets.mixkit.co/music/preview/mixkit-deep-urban-623.mp3', duration: '3:10' },
+  { id: '8', title: 'Chill Urban', genre: 'Lofi', mood: 'Chill', url: 'https://assets.mixkit.co/music/preview/mixkit-chill-urban-948.mp3', duration: '2:55' },
+  { id: '9', title: 'Mysterious Voices', genre: 'Cinematic', mood: 'Dark', url: 'https://assets.mixkit.co/music/preview/mixkit-mysterious-voices-158.mp3', duration: '2:15' },
+  { id: '10', title: 'Feel Good Chill', genre: 'Acoustic', mood: 'Happy', url: 'https://assets.mixkit.co/music/preview/mixkit-feel-good-89.mp3', duration: '2:01' },
+];
+
+const GENRES = ['All', 'Lofi', 'Cinematic', 'Electronic', 'Pop', 'Rock', 'Hip Hop', 'Acoustic'];
+const MOODS = ['All', 'Chill', 'Dramatic', 'Energetic', 'Uplifting', 'Aggressive', 'Dark', 'Happy'];
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<'caption' | 'movie' | 'upscaler'>('caption');
   const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -31,6 +47,21 @@ export default function App() {
   
   const [bgAudioFile, setBgAudioFile] = useState<File | null>(null);
   const [bgAudioUrl, setBgAudioUrl] = useState<string | null>(null);
+  
+  // Music Library Modal State
+  const [isMusicModalOpen, setIsMusicModalOpen] = useState(false);
+  const [musicGenreFilter, setMusicGenreFilter] = useState('All');
+  const [musicMoodFilter, setMusicMoodFilter] = useState('All');
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [playingPreviewId, setPlayingPreviewId] = useState<string | null>(null);
+
+  const closeMusicModal = () => {
+    if (previewAudioRef.current) {
+      previewAudioRef.current.pause();
+    }
+    setPlayingPreviewId(null);
+    setIsMusicModalOpen(false);
+  };
   
   const [title, setTitle] = useState("Power of Identity");
   const [subtitles, setSubtitles] = useState<Subtitle[]>([]);
@@ -562,22 +593,17 @@ export default function App() {
               </p>
             </div>
             
-            {/* Lyra BGM Presets */}
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              {[
-                { name: 'Lofi Study', url: 'https://assets.mixkit.co/music/preview/mixkit-hip-hop-02-738.mp3' },
-                { name: 'Cinematic', url: 'https://assets.mixkit.co/music/preview/mixkit-life-is-a-dream-837.mp3' },
-                { name: 'Tech House', url: 'https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3' },
-                { name: 'Upbeat', url: 'https://assets.mixkit.co/music/preview/mixkit-dreaming-big-31.mp3' },
-              ].map(bgm => (
-                <button
-                  key={bgm.name}
-                  onClick={() => { setBgAudioUrl(bgm.url); setBgAudioFile(new File([], `Lyra: ${bgm.name}`)); }}
-                  className="bg-white/5 hover:bg-white/10 hover:border-[#FFD700]/50 border border-white/10 rounded-md py-2 px-3 text-[9px] uppercase tracking-wider font-bold text-white transition-colors"
-                >
-                  Lyra: {bgm.name}
-                </button>
-              ))}
+            {/* Music Library Button */}
+            <div className="mt-4">
+              <button
+                onClick={() => setIsMusicModalOpen(true)}
+                className="w-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#FFD700]/50 rounded-xl py-3 px-4 flex items-center justify-center gap-2 transition-all group"
+              >
+                <Music className="w-4 h-4 text-[#FFD700] opacity-80 group-hover:opacity-100" />
+                <span className="text-[10px] uppercase tracking-widest font-bold text-white group-hover:text-[#FFD700] transition-colors">
+                  Browse Free Music Library
+                </span>
+              </button>
             </div>
 
             {bgAudioFile && (
@@ -1197,6 +1223,153 @@ export default function App() {
                 >
                   Save & Close
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Music Library Modal */}
+      <AnimatePresence>
+        {isMusicModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+              onClick={() => closeMusicModal()}
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-3xl bg-[#141416] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+            >
+              <div className="border-b border-white/10 px-6 py-4 flex justify-between items-center bg-[#0F0F11]">
+                <h3 className="text-[12px] uppercase tracking-[0.3em] font-black text-[#FFD700] flex items-center gap-2">
+                  <Music className="w-4 h-4" /> Royalty-Free Music Library
+                </h3>
+                <button 
+                  onClick={() => closeMusicModal()}
+                  className="opacity-40 hover:opacity-100 transition-opacity"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              
+              <div className="p-6 flex flex-col lg:flex-row gap-6 overflow-hidden min-h-[400px]">
+                {/* Filters Sidebar */}
+                <div className="w-full lg:w-48 flex-shrink-0 space-y-6 overflow-y-auto pr-2">
+                  <div className="space-y-3">
+                    <label className="text-[10px] uppercase tracking-[0.2em] font-black opacity-40 block">Genre</label>
+                    <div className="flex flex-col gap-1">
+                      {GENRES.map(genre => (
+                        <button
+                          key={genre}
+                          onClick={() => setMusicGenreFilter(genre)}
+                          className={`text-left text-[11px] font-bold tracking-wider py-2 px-3 rounded-lg transition-all ${
+                            musicGenreFilter === genre 
+                              ? "bg-[#FFD700]/10 text-[#FFD700]" 
+                              : "text-white/60 hover:bg-white/5 hover:text-white"
+                          }`}
+                        >
+                          {genre}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="text-[10px] uppercase tracking-[0.2em] font-black opacity-40 block">Mood</label>
+                    <div className="flex flex-col gap-1">
+                      {MOODS.map(mood => (
+                        <button
+                          key={mood}
+                          onClick={() => setMusicMoodFilter(mood)}
+                          className={`text-left text-[11px] font-bold tracking-wider py-2 px-3 rounded-lg transition-all ${
+                            musicMoodFilter === mood 
+                              ? "bg-[#FFD700]/10 text-[#FFD700]" 
+                              : "text-white/60 hover:bg-white/5 hover:text-white"
+                          }`}
+                        >
+                          {mood}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Track List */}
+                <div className="flex-1 overflow-y-auto space-y-2 pr-2">
+                  {ROYALTY_FREE_LIBRARY
+                    .filter(track => musicGenreFilter === 'All' || track.genre === musicGenreFilter)
+                    .filter(track => musicMoodFilter === 'All' || track.mood === musicMoodFilter)
+                    .map(track => (
+                      <div 
+                        key={track.id}
+                        className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 transition-colors group"
+                      >
+                        <div className="flex items-center gap-4">
+                          <button 
+                            className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+                              playingPreviewId === track.id ? 'bg-[#FFD700] text-black' : 'bg-white/10 text-white group-hover:bg-[#FFD700] group-hover:text-black'
+                            }`}
+                            onClick={() => {
+                              if (playingPreviewId === track.id) {
+                                previewAudioRef.current?.pause();
+                                setPlayingPreviewId(null);
+                              } else {
+                                previewAudioRef.current?.pause();
+                                const audio = new Audio(track.url);
+                                audio.onended = () => setPlayingPreviewId(null);
+                                audio.play();
+                                previewAudioRef.current = audio;
+                                setPlayingPreviewId(track.id);
+                              }
+                            }}
+                          >
+                            {playingPreviewId === track.id ? (
+                              <Pause className="w-4 h-4 ml-0.5" />
+                            ) : (
+                              <Play className="w-4 h-4 ml-1" />
+                            )}
+                          </button>
+                          <div>
+                            <h4 className="text-sm font-bold text-white group-hover:text-[#FFD700] transition-colors">{track.title}</h4>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-[9px] uppercase tracking-widest bg-white/10 px-2 py-0.5 rounded text-white/60">{track.genre}</span>
+                              <span className="text-[9px] uppercase tracking-widest bg-white/10 px-2 py-0.5 rounded text-white/60">{track.mood}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <span className="text-xs font-mono text-white/40">{track.duration}</span>
+                          <button
+                            onClick={() => {
+                              setBgAudioUrl(track.url);
+                              setBgAudioFile(new File([], `Library: ${track.title}`));
+                              closeMusicModal();
+                            }}
+                            className="bg-[#FFD700] text-black font-black uppercase tracking-widest text-[9px] px-4 py-2 rounded-lg hover:scale-105 transition-transform"
+                          >
+                            Use
+                          </button>
+                        </div>
+                      </div>
+                  ))}
+                  
+                  {ROYALTY_FREE_LIBRARY
+                    .filter(track => musicGenreFilter === 'All' || track.genre === musicGenreFilter)
+                    .filter(track => musicMoodFilter === 'All' || track.mood === musicMoodFilter)
+                    .length === 0 && (
+                      <div className="flex flex-col items-center justify-center py-20 text-center opacity-40">
+                        <Music className="w-12 h-12 mb-4" />
+                        <h4 className="text-lg font-bold">No tracks found</h4>
+                        <p className="text-sm">Try different filters.</p>
+                      </div>
+                  )}
+                </div>
               </div>
             </motion.div>
           </div>
