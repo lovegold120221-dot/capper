@@ -46,6 +46,7 @@ export default function App() {
   const [exportFormat, setExportFormat] = useState("MP4");
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
+  const [exportPreset, setExportPreset] = useState("auto");
   
   const [isUpscalingMain, setIsUpscalingMain] = useState(false);
   const [upscaleProgressMain, setUpscaleProgressMain] = useState(0);
@@ -63,11 +64,31 @@ export default function App() {
       position: 'bottom',
     };
   });
+
+  // Video Filter Settings
+  const [videoFilters, setVideoFilters] = useState(() => {
+    const saved = localStorage.getItem('captionSyncVideoFilters');
+    return saved ? JSON.parse(saved) : {
+      mirror: false,
+      colorGrade: 'none',
+      zoom: 1.0,
+      brightness: 100,
+      contrast: 100,
+      saturation: 100,
+      vignette: false,
+      grain: false,
+    };
+  });
+
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('captionSyncSettings', JSON.stringify(subSettings));
   }, [subSettings]);
+
+  useEffect(() => {
+    localStorage.setItem('captionSyncVideoFilters', JSON.stringify(videoFilters));
+  }, [videoFilters]);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const bgAudioRef = useRef<HTMLAudioElement>(null);
@@ -232,6 +253,7 @@ export default function App() {
         resolution: exportResolution as '720p' | '1080p',
         format: exportFormat,
         titlePos: getTitlePositionPercent(),
+        videoFilters,
         onProgress: (p) => setExportProgress(p)
       });
 
@@ -614,10 +636,19 @@ export default function App() {
                 <video
                   ref={videoRef}
                   src={videoUrl}
-                  className="absolute inset-0 w-full h-full object-cover"
+                  className={`absolute inset-0 w-full h-full object-cover transition-all ${videoFilters.mirror ? 'scale-x-[-1]' : ''}`}
+                  style={{ 
+                    filter: `brightness(${videoFilters.brightness}%) contrast(${videoFilters.contrast}%) saturate(${videoFilters.saturation}%)`,
+                    transform: `${videoFilters.mirror ? 'scaleX(-1)' : ''} scale(${videoFilters.zoom})`
+                  }}
                   playsInline
                   onClick={togglePlay}
                 />
+                
+                {/* Vignette Overlay */}
+                {videoFilters.vignette && (
+                  <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_120px_rgba(0,0,0,0.9)] z-0" />
+                )}
                 
                 {/* Background Audio Element */}
                 {bgAudioUrl && <audio ref={bgAudioRef} src={bgAudioUrl} loop />}
@@ -859,33 +890,45 @@ export default function App() {
                            const text = "This is a preview!";
 
                            return (
-                             <div className={`${fontSizeClass} font-black ${addedClasses} tracking-tight text-center leading-snug w-full select-none ${fontClass}`}>
-                               {style === 'block' && (
-                                 <span className="bg-[#FFD700] text-black px-3 py-1 inline-block transform -rotate-2 uppercase shadow-xl">
-                                   {text}
-                                 </span>
-                               )}
-                               {style === 'stroke' && (
-                                 <span 
-                                   className="text-white transform -rotate-2 inline-block uppercase drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]"
-                                   style={{ WebkitTextStroke: '2px black' }}
-                                 >
-                                   {text}
-                                 </span>
-                               )}
-                               {style === 'karaoke' && (
-                                 <span className="text-white inline-block font-black uppercase transform -rotate-2">
-                                     <span className="text-[#FFD700] inline-block mb-1" style={{ textShadow: '0 2px 10px rgba(255,215,0,0.5)' }}>This is</span>
-                                     <span className="opacity-40 inline-block mb-1 ml-2">a preview!</span>
-                                 </span>
-                               )}
-                             </div>
-                           );
-                        })()}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                            <div className={`${fontSizeClass} font-black ${addedClasses} tracking-tight text-center leading-snug w-full select-none ${fontClass}`}>
+                              {style === 'block' && (
+                                <span className="bg-[#FFD700] text-black px-3 py-1 inline-block transform -rotate-2 uppercase shadow-xl">
+                                  {text}
+                                </span>
+                              )}
+                              {style === 'stroke' && (
+                                <span 
+                                  className="text-white transform -rotate-2 inline-block uppercase drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]"
+                                  style={{ WebkitTextStroke: '2px black' }}
+                                >
+                                  {text}
+                                </span>
+                              )}
+                              {style === 'karaoke' && (
+                                <span className="text-white inline-block font-black uppercase transform -rotate-2">
+                                    <span className="text-[#FFD700] inline-block mb-1" style={{ textShadow: '0 2px 10px rgba(255,215,0,0.5)' }}>This is</span>
+                                    <span className="opacity-40 inline-block mb-1 ml-2">a preview!</span>
+                                </span>
+                              )}
+                            </div>
+                          );
+                       })()}
+                     </div>
+                   </div>
+                   
+                   {/* Preview Overlay for Filters */}
+                   {videoFilters.mirror && (
+                     <div className="absolute inset-0 bg-transparent pointer-events-none scale-x-[-1]" />
+                   )}
+                   <div 
+                     className="absolute inset-x-0 bottom-0 top-0 pointer-events-none"
+                     style={{
+                       filter: `brightness(${videoFilters.brightness}%) contrast(${videoFilters.contrast}%) saturate(${videoFilters.saturation}%)`,
+                       boxShadow: videoFilters.vignette ? 'inset 0 0 100px rgba(0,0,0,0.8)' : 'none'
+                     }}
+                   />
+                 </div>
+               </div>
                 
                 {/* Font Selector */}
                 <div className="space-y-4">
@@ -978,6 +1021,151 @@ export default function App() {
                   </div>
                 </div>
 
+                <div className="h-px bg-white/10 w-full" />
+
+                {/* Anti-Copyright & Color Grading */}
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] uppercase tracking-[0.2em] font-black text-[#FFD700] block">Anti-Copyright & Grading</label>
+                    <span className="px-2 py-0.5 rounded bg-red-500/20 text-red-400 text-[8px] font-black uppercase tracking-widest">Safe Tweak</span>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <button
+                      onClick={() => setVideoFilters({...videoFilters, mirror: !videoFilters.mirror})}
+                      className={`p-4 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${
+                        videoFilters.mirror 
+                          ? "border-[#FFD700] bg-[#FFD700]/10 text-[#FFD700]" 
+                          : "border-white/10 bg-white/5 opacity-60 hover:opacity-100 hover:border-white/30"
+                      }`}
+                    >
+                      <div className="text-xl">↔️</div>
+                      <span className="text-[9px] uppercase tracking-widest font-bold">Mirror Video</span>
+                    </button>
+                    
+                    <button
+                      onClick={() => setVideoFilters({...videoFilters, vignette: !videoFilters.vignette})}
+                      className={`p-4 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${
+                        videoFilters.vignette 
+                          ? "border-[#FFD700] bg-[#FFD700]/10 text-[#FFD700]" 
+                          : "border-white/10 bg-white/5 opacity-60 hover:opacity-100 hover:border-white/30"
+                      }`}
+                    >
+                      <div className="text-xl">🌑</div>
+                      <span className="text-[9px] uppercase tracking-widest font-bold">Safe Vignette</span>
+                    </button>
+
+                    <button
+                      onClick={() => setVideoFilters({...videoFilters, zoom: videoFilters.zoom === 1.05 ? 1.0 : 1.05})}
+                      className={`p-4 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${
+                        videoFilters.zoom > 1 
+                          ? "border-[#FFD700] bg-[#FFD700]/10 text-[#FFD700]" 
+                          : "border-white/10 bg-white/5 opacity-60 hover:opacity-100 hover:border-white/30"
+                      }`}
+                    >
+                      <div className="text-xl">🔍</div>
+                      <span className="text-[9px] uppercase tracking-widest font-bold">Safe Zoom (5%)</span>
+                    </button>
+
+                    <button
+                      onClick={() => setVideoFilters({...videoFilters, saturation: videoFilters.saturation === 120 ? 100 : 120, contrast: videoFilters.contrast === 110 ? 100 : 110})}
+                      className={`p-4 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${
+                        videoFilters.saturation > 100 
+                          ? "border-[#FFD700] bg-[#FFD700]/10 text-[#FFD700]" 
+                          : "border-white/10 bg-white/5 opacity-60 hover:opacity-100 hover:border-white/30"
+                      }`}
+                    >
+                      <div className="text-xl">🎨</div>
+                      <span className="text-[9px] uppercase tracking-widest font-bold">Punchy Colors</span>
+                    </button>
+
+                    <button
+                      onClick={() => setVideoFilters({...videoFilters, brightness: 90, contrast: 110, saturation: 0})}
+                      className={`p-4 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${
+                        videoFilters.saturation === 0 
+                          ? "border-[#FFD700] bg-[#FFD700]/10 text-[#FFD700]" 
+                          : "border-white/10 bg-white/5 opacity-60 hover:opacity-100 hover:border-white/30"
+                      }`}
+                    >
+                      <div className="text-xl">🎬</div>
+                      <span className="text-[9px] uppercase tracking-widest font-bold">Noir / Film Noir</span>
+                    </button>
+                    
+                    <button
+                      onClick={() => setVideoFilters({...videoFilters, brightness: 105, contrast: 105, saturation: 110})}
+                      className={`p-4 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${
+                        videoFilters.brightness === 105 && videoFilters.saturation === 110
+                          ? "border-[#FFD700] bg-[#FFD700]/10 text-[#FFD700]" 
+                          : "border-white/10 bg-white/5 opacity-60 hover:opacity-100 hover:border-white/30"
+                      }`}
+                    >
+                      <div className="text-xl">🌟</div>
+                      <span className="text-[9px] uppercase tracking-widest font-bold">Cinematic Pop</span>
+                    </button>
+                    
+                    <button
+                      onClick={() => setVideoFilters({
+                        mirror: false,
+                        colorGrade: 'none',
+                        zoom: 1.0,
+                        brightness: 100,
+                        contrast: 100,
+                        saturation: 100,
+                        vignette: false,
+                        grain: false,
+                      })}
+                      className="p-4 rounded-xl border border-white/10 bg-white/5 opacity-40 hover:opacity-100 flex flex-col items-center justify-center gap-2 transition-all col-span-2 mt-2"
+                    >
+                      <span className="text-[9px] uppercase tracking-widest font-black">Reset All Filters</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] uppercase tracking-widest font-bold opacity-40">Brightness & Color Shift</label>
+                      <span className="text-[10px] font-mono text-[#FFD700]">{videoFilters.brightness}% / {videoFilters.saturation}%</span>
+                    </div>
+                    <div className="space-y-6 bg-white/5 p-4 rounded-xl border border-white/5">
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-[9px] uppercase tracking-widest opacity-40">
+                          <span>Exposure</span>
+                          <span>{videoFilters.brightness}%</span>
+                        </div>
+                        <input 
+                          type="range" min="50" max="150" step="1" 
+                          value={videoFilters.brightness} 
+                          onChange={(e) => setVideoFilters({...videoFilters, brightness: parseInt(e.target.value)})}
+                          className="w-full accent-[#FFD700]"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-[9px] uppercase tracking-widest opacity-40">
+                          <span>Saturation</span>
+                          <span>{videoFilters.saturation}%</span>
+                        </div>
+                        <input 
+                          type="range" min="50" max="200" step="1" 
+                          value={videoFilters.saturation} 
+                          onChange={(e) => setVideoFilters({...videoFilters, saturation: parseInt(e.target.value)})}
+                          className="w-full accent-[#FFD700]"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-[9px] uppercase tracking-widest opacity-40">
+                          <span>Contrast</span>
+                          <span>{videoFilters.contrast}%</span>
+                        </div>
+                        <input 
+                          type="range" min="50" max="150" step="1" 
+                          value={videoFilters.contrast} 
+                          onChange={(e) => setVideoFilters({...videoFilters, contrast: parseInt(e.target.value)})}
+                          className="w-full accent-[#FFD700]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
               </div>
 
               <div className="border-t border-white/10 p-6 bg-[#0F0F11] flex justify-end">
@@ -1022,41 +1210,75 @@ export default function App() {
               </div>
               
               <div className="p-6 space-y-8">
+                {/* Platform Presets */}
                 <div className="space-y-4">
-                  <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 block">Resolution</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {["720p", "1080p"].map(res => (
+                  <label className="text-[10px] uppercase tracking-[0.2em] font-black opacity-40 block">Platform Optimizations</label>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    {[
+                      { id: 'auto', name: 'Auto', icon: '✨' },
+                      { id: 'tiktok', name: 'TikTok', icon: '🎵' },
+                      { id: 'shorts', name: 'YT Shorts', icon: '📺' },
+                      { id: 'reels', name: 'IG Reels', icon: '📸' }
+                    ].map(preset => (
                       <button
-                        key={res}
-                        onClick={() => setExportResolution(res)}
-                        className={`py-3 rounded-lg border text-xs font-bold tracking-widest transition-all ${
-                          exportResolution === res 
-                            ? "border-[#FFD700] bg-[#FFD700]/10 text-[#FFD700]" 
-                            : "border-white/10 bg-white/5 opacity-60 hover:opacity-100 hover:border-white/30"
+                        key={preset.id}
+                        onClick={() => {
+                          setExportPreset(preset.id);
+                          if (preset.id !== 'auto') {
+                            setExportResolution('1080p');
+                            setExportFormat('MP4');
+                          }
+                        }}
+                        className={`p-3 rounded-xl border flex flex-col items-center gap-2 transition-all ${
+                          exportPreset === preset.id
+                            ? "border-[#FFD700] bg-[#FFD700]/10 text-white"
+                            : "border-white/5 bg-white/5 text-white/40 hover:border-white/20 hover:text-white/60"
                         }`}
                       >
-                        {res}
+                        <span className="text-lg">{preset.icon}</span>
+                        <span className="text-[8px] uppercase tracking-widest font-black">{preset.name}</span>
                       </button>
                     ))}
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 block">Format</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {["MP4", "MOV"].map(fmt => (
-                      <button
-                        key={fmt}
-                        onClick={() => setExportFormat(fmt)}
-                        className={`py-3 rounded-lg border text-xs font-bold tracking-widest transition-all ${
-                          exportFormat === fmt 
-                            ? "border-[#FFD700] bg-[#FFD700]/10 text-[#FFD700]" 
-                            : "border-white/10 bg-white/5 opacity-60 hover:opacity-100 hover:border-white/30"
-                        }`}
-                      >
-                        {fmt}
-                      </button>
-                    ))}
+                <div className="grid grid-cols-2 gap-8">
+                  <div className="space-y-4">
+                    <label className="text-[10px] uppercase tracking-[0.2em] font-black opacity-40 block">Resolution</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {["720p", "1080p"].map(res => (
+                        <button
+                          key={res}
+                          onClick={() => setExportResolution(res)}
+                          className={`py-3 rounded-lg border text-xs font-bold tracking-widest transition-all ${
+                            exportResolution === res 
+                              ? "border-[#FFD700] bg-[#FFD700]/10 text-[#FFD700]" 
+                              : "border-white/10 bg-white/5 opacity-60 hover:opacity-100 hover:border-white/30"
+                          }`}
+                        >
+                          {res}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 block">Format</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {["MP4", "MOV"].map(fmt => (
+                        <button
+                          key={fmt}
+                          onClick={() => setExportFormat(fmt)}
+                          className={`py-3 rounded-lg border text-xs font-bold tracking-widest transition-all ${
+                            exportFormat === fmt 
+                              ? "border-[#FFD700] bg-[#FFD700]/10 text-[#FFD700]" 
+                              : "border-white/10 bg-white/5 opacity-60 hover:opacity-100 hover:border-white/30"
+                          }`}
+                        >
+                          {fmt}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>

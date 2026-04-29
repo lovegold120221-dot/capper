@@ -15,6 +15,16 @@ export interface ExportOptions {
   format: string;
   onProgress: (progress: number) => void;
   titlePos?: { x: number, y: number };
+  videoFilters?: {
+    mirror: boolean;
+    colorGrade: string;
+    zoom: number;
+    brightness: number;
+    contrast: number;
+    saturation: number;
+    vignette: boolean;
+    grain: boolean;
+  };
 }
 
 export async function generateThumbnail(videoUrl: string): Promise<string> {
@@ -263,7 +273,39 @@ export async function exportVideo(options: ExportOptions): Promise<Blob> {
           drawX = 0;
           drawY = (height - drawH) / 2;
         }
+
+        ctx.save();
+        
+        // Anti-Copyright & Grading
+        if (options.videoFilters) {
+          const { mirror, brightness, contrast, saturation, zoom } = options.videoFilters;
+          
+          // Apply Context Filters
+          ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
+          
+          if (mirror) {
+            ctx.translate(width, 0);
+            ctx.scale(-1, 1);
+          }
+          
+          if (zoom && zoom > 1) {
+            ctx.translate(width/2, height/2);
+            ctx.scale(zoom, zoom);
+            ctx.translate(-width/2, -height/2);
+          }
+        }
+
         ctx.drawImage(video, drawX, drawY, drawW, drawH);
+        ctx.restore();
+
+        // Vignette Overlay
+        if (options.videoFilters?.vignette) {
+          const vGrad = ctx.createRadialGradient(width/2, height/2, width*0.3, width/2, height/2, width*0.9);
+          vGrad.addColorStop(0, 'rgba(0,0,0,0)');
+          vGrad.addColorStop(1, 'rgba(0,0,0,0.8)');
+          ctx.fillStyle = vGrad;
+          ctx.fillRect(0, 0, width, height);
+        }
 
         const grad = ctx.createLinearGradient(0, 0, 0, height);
         grad.addColorStop(0, 'rgba(0,0,0,0.6)');
