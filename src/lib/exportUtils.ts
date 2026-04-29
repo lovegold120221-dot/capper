@@ -1,4 +1,4 @@
-import { Subtitle } from './gemini';
+import { Subtitle, generateThumbnailHook } from './gemini';
 
 export interface ExportOptions {
   videoUrl: string;
@@ -14,6 +14,108 @@ export interface ExportOptions {
   resolution: '720p' | '1080p';
   format: string;
   onProgress: (progress: number) => void;
+}
+
+export async function generateThumbnail(videoUrl: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    video.src = videoUrl;
+    if (!videoUrl.startsWith('blob:')) {
+      video.crossOrigin = 'anonymous';
+    }
+    video.muted = true;
+    
+    video.onloadeddata = () => {
+      // seek to 1/3 of the video
+      video.currentTime = (video.duration || 10) * 0.33;
+    };
+
+    video.onseeked = async () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1080;
+        canvas.height = 1920;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('No canvas context');
+
+        ctx.fillStyle = '#0a0a0b';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const canvasRatio = canvas.width / canvas.height;
+        const videoRatio = video.videoWidth / (video.videoHeight || 1);
+        let drawW, drawH, drawX, drawY;
+        if (videoRatio > canvasRatio) {
+          drawH = canvas.height;
+          drawW = video.videoWidth * (canvas.height / video.videoHeight);
+          drawX = (canvas.width - drawW) / 2;
+          drawY = 0;
+        } else {
+          drawW = canvas.width;
+          drawH = video.videoHeight * (canvas.width / video.videoWidth);
+          drawX = 0;
+          drawY = (canvas.height - drawH) / 2;
+        }
+        ctx.drawImage(video, drawX, drawY, drawW, drawH);
+
+        // Get base64 for Gemini Vision
+        const base64Image = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+        
+        let hookText = "WATCH NOW!";
+        try {
+          hookText = await generateThumbnailHook(base64Image);
+        } catch (e) {
+          console.error("AI Hook generation failed", e);
+        }
+
+        // Draw overlay gradient
+        const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        grad.addColorStop(0, 'rgba(0,0,0,0.1)');
+        grad.addColorStop(0.5, 'rgba(0,0,0,0.4)');
+        grad.addColorStop(1, 'rgba(0,0,0,0.8)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw Hook Text
+        ctx.save();
+        const width = canvas.width;
+        const height = canvas.height;
+        ctx.translate(width/2, height * 0.75);
+        ctx.rotate(-4 * Math.PI / 180);
+
+        ctx.font = `italic 900 ${Math.floor(width * 0.15)}px Impact, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        const text = hookText.toUpperCase();
+        
+        // Stroke
+        ctx.shadowColor = 'rgba(0,0,0,1)';
+        ctx.shadowBlur = 20;
+        ctx.shadowOffsetY = 10;
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = width * 0.04;
+        ctx.strokeText(text, 0, 0);
+
+        // Gradient Fill
+        const textGrad = ctx.createLinearGradient(0, -height*0.1, 0, height*0.1);
+        textGrad.addColorStop(0, '#FFFFFF');
+        textGrad.addColorStop(0.5, '#FFD700');
+        textGrad.addColorStop(1, '#FF8C00');
+        ctx.fillStyle = textGrad;
+        
+        ctx.shadowColor = 'transparent';
+        ctx.fillText(text, 0, 0);
+        
+        ctx.restore();
+
+        resolve(canvas.toDataURL('image/jpeg', 0.9));
+      } catch (err) {
+        reject(err);
+      }
+    };
+
+    video.onerror = () => reject(new Error('Failed to load video for thumbnail'));
+  });
 }
 
 export async function exportVideo(options: ExportOptions): Promise<Blob> {

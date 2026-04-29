@@ -56,3 +56,29 @@ export async function generateSubtitles(base64Audio: string): Promise<Subtitle[]
     throw new Error("Failed to generate subtitles. Please check if the audio is clear and try again.");
   }
 }
+
+export async function generateThumbnailHook(base64Image: string): Promise<string> {
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: [
+        {
+          inlineData: {
+            data: base64Image,
+            mimeType: "image/jpeg",
+          },
+        },
+        "Analyze this video frame and generate an eye-catching, hooking text for a YouTube Shorts thumbnail. The text must be incredibly engaging, clickbaity (but relevant), and extremely short (1 to 4 words max). Do not include any quotes, just the text.",
+      ],
+      config: {
+        systemInstruction: "You are an expert YouTube strategist and thumbnail designer.",
+        temperature: 0.9,
+      },
+    });
+
+    return response.text?.trim().replace(/["']/g, '') || "WATCH NOW!";
+  } catch (error) {
+    console.error("Failed to generate thumbnail hook:", error);
+    return "MIND BLOWN!";
+  }
+}
