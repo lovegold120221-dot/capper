@@ -53,6 +53,7 @@ export default function App() {
   
   const [generatedTitle, setGeneratedTitle] = useState("");
   const [isGeneratingTitle, setIsGeneratingTitle] = useState(false);
+  const [targetLanguage, setTargetLanguage] = useState("English");
 
   // Subtitle Settings
   const [subSettings, setSubSettings] = useState(() => {
@@ -121,13 +122,13 @@ export default function App() {
     try {
       // 1. Generate Subtitles
       const base64Audio = await extractAudioBase64(videoFile);
-      const generatedSubtitles = await generateSubtitles(base64Audio);
+      const generatedSubtitles = await generateSubtitles(base64Audio, targetLanguage);
       setSubtitles(generatedSubtitles);
 
       // 2. Generate Title
       if (generatedSubtitles.length > 0) {
         const fullText = generatedSubtitles.map(s => s.text).join(' ');
-        const titleRes = await generateViralTitle(fullText);
+        const titleRes = await generateViralTitle(fullText, targetLanguage);
         setGeneratedTitle(titleRes);
         setTitle(titleRes);
       }
@@ -281,7 +282,7 @@ export default function App() {
     setIsGeneratingTitle(true);
     try {
       const fullText = subtitles.map(s => s.text).join(' ');
-      const titleRes = await generateViralTitle(fullText);
+      const titleRes = await generateViralTitle(fullText, targetLanguage);
       setGeneratedTitle(titleRes);
       setTitle(titleRes);
     } catch (e) {
@@ -594,7 +595,28 @@ export default function App() {
             )}
           </section>
 
-          <section className="mt-auto pt-8">
+          <section className="mt-auto pt-8 space-y-4">
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase tracking-widest font-black text-white/50 block">Target Language</label>
+              <select
+                value={targetLanguage}
+                onChange={(e) => setTargetLanguage(e.target.value)}
+                className="w-full bg-[#1A1A1E] border border-white/10 rounded-xl p-3 text-sm font-bold text-white focus:border-[#FFD700] focus:ring-1 focus:ring-[#FFD700] outline-none transition-all"
+              >
+                <option value="English">🇬🇧 English</option>
+                <option value="Spanish">🇪🇸 Spanish</option>
+                <option value="French">🇫🇷 French</option>
+                <option value="German">🇩🇪 German</option>
+                <option value="Italian">🇮🇹 Italian</option>
+                <option value="Portuguese">🇵🇹 Portuguese</option>
+                <option value="Russian">🇷🇺 Russian</option>
+                <option value="Japanese">🇯🇵 Japanese</option>
+                <option value="Korean">🇰🇷 Korean</option>
+                <option value="Chinese">🇨🇳 Chinese</option>
+                <option value="Arabic">🇸🇦 Arabic</option>
+                <option value="Hindi">🇮🇳 Hindi</option>
+              </select>
+            </div>
             <button
               onClick={handleGenerate}
               disabled={!videoFile || isGenerating}

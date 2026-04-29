@@ -8,7 +8,7 @@ export interface Subtitle {
   end: number;
 }
 
-export async function generateSubtitles(base64Audio: string): Promise<Subtitle[]> {
+export async function generateSubtitles(base64Audio: string, targetLanguage: string = "English"): Promise<Subtitle[]> {
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
@@ -19,7 +19,7 @@ export async function generateSubtitles(base64Audio: string): Promise<Subtitle[]
             mimeType: "audio/wav",
           },
         },
-        "Please transcribe this audio accurately. Break the transcription into very short phrases (1-4 words) suitable for short-form video subtitles like karaoke. Return ONLY a JSON array of objects, where each object has 'text' (string), 'start' (number, start time in seconds), and 'end' (number, end time in seconds). Be as precise as possible with the timing to match the exact moment the words are spoken.",
+        `Please transcribe this audio accurately and output subtitles in ${targetLanguage}. If the original audio is not in ${targetLanguage}, translate it to ${targetLanguage}. Break the transcription into very short phrases (1-4 words) suitable for short-form video subtitles like karaoke. Return ONLY a JSON array of objects, where each object has 'text' (string), 'start' (number, start time in seconds), and 'end' (number, end time in seconds). Be as precise as possible with the timing to match the exact moment the words are spoken.`,
       ],
       config: {
         responseMimeType: "application/json",
@@ -57,12 +57,12 @@ export async function generateSubtitles(base64Audio: string): Promise<Subtitle[]
   }
 }
 
-export async function generateViralTitle(transcript: string): Promise<string> {
+export async function generateViralTitle(transcript: string, targetLanguage: string = "English"): Promise<string> {
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3.1-8b",
       contents: [
-        { text: `Analyze this transcript/subtitles and generate a SINGLE eye-catchy, quotable, unique, and hooking title for social media (e.g., YouTube Shorts or TikTok). It should be maximum 6 words. Do not use quotes around it. Just return the title text.\n\nTranscript:\n${transcript}` }
+        { text: `Analyze this transcript/subtitles and generate a SINGLE eye-catchy, quotable, unique, and hooking title for social media (e.g., YouTube Shorts or TikTok). It should be maximum 6 words. Output the title in ${targetLanguage}. Do not use quotes around it. Just return the title text.\n\nTranscript:\n${transcript}` }
       ],
       config: {
         systemInstruction: "You are an expert social media copywriter specializing in viral hooks.",
